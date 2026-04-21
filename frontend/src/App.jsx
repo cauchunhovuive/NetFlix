@@ -28,6 +28,11 @@ export default function App() {
   const [watchForm, setWatchForm] = useState({ watch_time: "", rating: "" });
   const [watchMsg, setWatchMsg] = useState({ text: "", type: "" });
 
+  // Stream state
+  const [streamUrl, setStreamUrl] = useState(null);
+  const [streamLoading, setStreamLoading] = useState(false);
+  const [streamMsg, setStreamMsg] = useState({ text: "", type: "" });
+
   useEffect(() => {
     if (page === "main") {
       fetchMovies();
@@ -109,11 +114,58 @@ export default function App() {
       if (res.ok) {
         setWatchMsg({ text: "Đã lưu lịch sử xem!", type: "success" });
         fetchHistory();
-        setTimeout(() => { setSelectedMovie(null); setWatchMsg({ text: "", type: "" }); setWatchForm({ watch_time: "", rating: "" }); }, 1200);
+        setTimeout(() => { closeModal(); }, 1200);
       }
     } catch {
       setWatchMsg({ text: "Lỗi lưu dữ liệu", type: "error" });
     }
+  }
+
+  async function doWatchMovie() {
+    setStreamLoading(true);
+    setStreamMsg({ text: "", type: "" });
+    setStreamUrl(null);
+    try {
+      // ── Thay đoạn mock dưới đây bằng API thật của bạn ──
+      // const res = await fetch(`${API}/movies/${selectedMovie.MovieID}/stream`);
+      // if (!res.ok) {
+      //   const err = await res.json();
+      //   setStreamMsg({ text: err.message || "Phim chưa có nguồn phát.", type: "error" });
+      //   setStreamLoading(false);
+      //   return;
+      // }
+      // const data = await res.json();
+      // setStreamUrl(data.url); // hoặc data.stream_url tùy API trả về
+      // ────────────────────────────────────────────────────
+
+      // Mock: giả lập delay mạng 1 giây
+      await new Promise(r => setTimeout(r, 1000));
+
+      // Mock: phim MovieID chẵn → tồn tại, lẻ → không tồn tại (để demo 2 trường hợp)
+      const exists = selectedMovie.MovieID % 2 === 0;
+
+      if (!exists) {
+        setStreamMsg({ text: "Phim chưa có nguồn phát. Vui lòng thử lại sau.", type: "error" });
+        setStreamLoading(false);
+        return;
+      }
+
+      // Mock URL — thay bằng URL thật từ API
+      const mockUrl = "https://www.w3schools.com/html/mov_bbb.mp4";
+      setStreamUrl(mockUrl);
+    } catch {
+      setStreamMsg({ text: "Không kết nối được server", type: "error" });
+    }
+    setStreamLoading(false);
+  }
+
+  function closeModal() {
+    setSelectedMovie(null);
+    setWatchMsg({ text: "", type: "" });
+    setWatchForm({ watch_time: "", rating: "" });
+    setStreamUrl(null);
+    setStreamMsg({ text: "", type: "" });
+    setStreamLoading(false);
   }
 
   function doLogout() {
@@ -200,7 +252,7 @@ export default function App() {
             {loadingMovies ? <div className="loading">Đang tải...</div> : (
               <div className="movies-grid">
                 {movies.map((m, i) => (
-                  <div key={m.MovieID} className="movie-card" onClick={() => { setSelectedMovie(m); setWatchMsg({ text: "", type: "" }); setWatchForm({ watch_time: "", rating: "" }); }}>
+                  <div key={m.MovieID} className="movie-card" onClick={() => { setSelectedMovie(m); setWatchMsg({ text: "", type: "" }); setWatchForm({ watch_time: "", rating: "" }); setStreamUrl(null); setStreamMsg({ text: "", type: "" }); }}>
                     <div className="movie-thumb" style={{ background: BG_COLORS[i % BG_COLORS.length] }}>
                       <span className="movie-emoji">{EMOJIS[i % EMOJIS.length]}</span>
                     </div>
@@ -265,16 +317,46 @@ export default function App() {
 
       {/* Movie Modal */}
       {selectedMovie && (
-        <div className="modal-overlay" onClick={e => { if (e.target === e.currentTarget) setSelectedMovie(null); }}>
+        <div className="modal-overlay" onClick={e => { if (e.target === e.currentTarget) closeModal(); }}>
           <div className="modal">
-            <div className="modal-header" style={{ background: BG_COLORS[movies.indexOf(selectedMovie) % BG_COLORS.length] }}>
-              <span style={{ fontSize: 48 }}>{EMOJIS[movies.indexOf(selectedMovie) % EMOJIS.length]}</span>
+            <div className="modal-header" style={{ background: streamUrl ? "#000" : BG_COLORS[movies.indexOf(selectedMovie) % BG_COLORS.length] }}>
+              {streamUrl ? (
+                <video
+                  key={streamUrl}
+                  src={streamUrl}
+                  controls
+                  autoPlay
+                  style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+                />
+              ) : (
+                <span style={{ fontSize: 48 }}>{EMOJIS[movies.indexOf(selectedMovie) % EMOJIS.length]}</span>
+              )}
             </div>
+
             <div className="modal-body">
               <h2 className="modal-title">{selectedMovie.Title}</h2>
               <div className="modal-genre">{selectedMovie.Genre}</div>
               <p className="modal-desc">{selectedMovie.Description || "Không có mô tả"}</p>
 
+              {/* Nút xem phim */}
+              <button
+                className="btn-play"
+                onClick={doWatchMovie}
+                disabled={streamLoading}
+              >
+                {streamLoading
+                  ? <><span className="spinner" /> Đang kiểm tra...</>
+                  : streamUrl
+                    ? "↺ Phát lại"
+                    : "▶ Xem phim"}
+              </button>
+              {streamMsg.text && (
+                <div className={`msg ${streamMsg.type}`} style={{ marginTop: 8 }}>
+                  {streamMsg.text}
+                </div>
+              )}
+
+              {/* Form lưu lịch sử */}
               <div className="watch-form">
                 <p className="watch-label">Ghi lại lịch sử xem</p>
                 <div className="watch-row">
@@ -291,7 +373,7 @@ export default function App() {
                 {watchMsg.text && <div className={`msg ${watchMsg.type}`} style={{ marginTop: 8 }}>{watchMsg.text}</div>}
               </div>
 
-              <button className="btn-close" onClick={() => setSelectedMovie(null)}>Đóng</button>
+              <button className="btn-close" onClick={closeModal}>Đóng</button>
             </div>
           </div>
         </div>

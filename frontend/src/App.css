@@ -9,6 +9,8 @@
 :root {
   --red: #e50914;
   --red-dark: #b20710;
+  --green: #1db954;
+  --green-dark: #17a349;
   --bg: #0a0a0a;
   --bg-card: #141414;
   --bg-elevated: #1f1f1f;
@@ -437,6 +439,15 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
+  overflow: hidden;
+  transition: background 0.3s;
+}
+
+.modal-header video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
 }
 
 .modal-body { padding: 1.5rem; }
@@ -463,10 +474,52 @@ body {
   margin-bottom: 1.25rem;
 }
 
+/* ========== WATCH BUTTON ========== */
+.btn-play {
+  width: 100%;
+  padding: 11px;
+  background: var(--green);
+  border: none;
+  border-radius: 8px;
+  color: #fff;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  letter-spacing: 0.3px;
+  transition: background 0.2s, transform 0.1s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.btn-play:hover:not(:disabled) { background: var(--green-dark); }
+.btn-play:active:not(:disabled) { transform: scale(0.98); }
+.btn-play:disabled { opacity: 0.65; cursor: not-allowed; }
+
+.spinner {
+  width: 15px;
+  height: 15px;
+  border: 2px solid rgba(255,255,255,0.35);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+  display: inline-block;
+  flex-shrink: 0;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ========== WATCH FORM ========== */
 .watch-form {
   background: var(--bg-elevated);
   border-radius: 10px;
   padding: 14px;
+  margin-top: 14px;
   margin-bottom: 12px;
 }
 
