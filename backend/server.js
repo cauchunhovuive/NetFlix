@@ -53,7 +53,7 @@ app.post("/watch", async (req, res) => {
         await pool.request()
             .input("user_id", sql.Int, user_id)
             .input("movie_id", sql.Int, movie_id)
-            .input("watch_time", sql.NVarChar, watch_time)
+            .input("watch_time", sql.Int, watch_time)
             .input("rating", sql.Float, rating)
             .query(`
                 INSERT INTO WatchHistory (UserID, MovieID, WatchTime, Rating)
@@ -74,6 +74,8 @@ app.get("/history", async (req, res) => {
         const result = await pool.request().query(`
             SELECT 
                 wh.HistoryID,
+                wh.UserID,
+                wh.MovieID,
                 u.Name,
                 m.Title,
                 wh.WatchTime,
