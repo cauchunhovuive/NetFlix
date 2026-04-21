@@ -1,6 +1,6 @@
 # 🎬 Netflix Clone — Ứng dụng Xem Phim
 
-Ứng dụng web quản lý và theo dõi lịch sử xem phim, xây dựng theo kiến trúc **Client-Server**, tích hợp **OMDb API** và phân tích dữ liệu trên **Databricks**.
+Ứng dụng web quản lý và theo dõi lịch sử xem phim, xây dựng theo kiến trúc **Client-Server**, tích hợp **OMDb API** và lưu trữ dữ liệu trực tiếp trên **Databricks SQL Warehouse**.
 
 > 📦 Project môn Điện Toán Đám Mây
 
@@ -9,27 +9,16 @@
 ## 🧱 Kiến trúc hệ thống
 
 ```
-┌─────────────────────┐        ┌──────────────────────┐        ┌─────────────────┐
-│   React Frontend    │ ─────► │   Express Backend     │ ─────► │   SQL Server    │
-│   localhost:5173    │        │   localhost:3000       │        │   NetflixDB     │
-└─────────────────────┘        └──────────────────────┘        └─────────────────┘
+┌─────────────────────┐        ┌──────────────────────┐        ┌──────────────────────────┐
+│   React Frontend    │ ─────► │   Express Backend     │ ─────► │  Databricks SQL Warehouse│
+│   localhost:5173    │        │   localhost:3000       │        │  (Delta Lake Tables)     │
+└─────────────────────┘        └──────────────────────┘        └──────────────────────────┘
            │                              │
            │                              ▼
            │                   ┌──────────────────────┐
            └──────────────────►│      OMDb API         │
                                │  (Kiểm tra & poster) │
                                └──────────────────────┘
-
-                   Data Flow → Databricks
-                   ┌──────────────────────────────────────┐
-                   │  SQL Server → export.js → CSV files  │
-                   │              ↓                       │
-                   │  Upload lên Databricks Volume        │
-                   │              ↓                       │
-                   │  Spark Notebook phân tích            │
-                   │              ↓                       │
-                   │  Delta Lake Tables + Visualize       │
-                   └──────────────────────────────────────┘
 ```
 
 ---
@@ -40,9 +29,9 @@
 |------|-----------|
 | Frontend | React, Vite, CSS |
 | Backend | Node.js, Express.js |
-| Database | SQL Server (Microsoft) |
+| Database | Databricks SQL Warehouse, Delta Lake |
 | External API | OMDb API |
-| Cloud / Analytics | Databricks Community Edition, Apache Spark, Delta Lake |
+| Cloud | Databricks Community Edition |
 | Version Control | Git, GitHub |
 
 ---
@@ -56,8 +45,7 @@ NetFlix/
 │       ├── App.jsx         # Component chính
 │       └── App.css         # Styles
 ├── backend/                # Express API
-│   ├── server.js           # API routes
-│   ├── export.js           # Script export CSV cho Databricks
+│   ├── server.js           # API routes + kết nối Databricks
 │   └── package.json
 └── README.md
 ```
@@ -68,7 +56,7 @@ NetFlix/
 
 ### Yêu cầu
 - Node.js >= 18
-- SQL Server (local)
+- Tài khoản Databricks (Community Edition hoặc có workspace)
 - npm
 
 ---
@@ -89,42 +77,50 @@ cd backend
 npm install
 ```
 
-Cấu hình database trong `server.js`:
-```js
-const config = {
-    user: "sa",
-    password: "123456",       // ← đổi thành password của bạn
-    server: "localhost",
-    database: "NetflixDB",
-    options: { trustServerCertificate: true }
-};
+Tạo file `.env` trong thư mục `backend/`:
+```env
+DATABRICKS_HOST=https://<your-workspace>.azuredatabricks.net
+DATABRICKS_TOKEN=<your-personal-access-token>
+DATABRICKS_HTTP_PATH=/sql/1.0/warehouses/<warehouse-id>
 ```
 
-Khởi tạo database SQL Server:
+> ⚠️ Không commit file `.env` lên GitHub. Thêm vào `.gitignore`.
+
+Cấu hình kết nối trong `server.js`:
+```js
+const { DBSQLClient } = require('@databricks/sql');
+
+const client = new DBSQLClient();
+await client.connect({
+    host:  process.env.DATABRICKS_HOST,
+    path:  process.env.DATABRICKS_HTTP_PATH,
+    token: process.env.DATABRICKS_TOKEN,
+});
+```
+
+Khởi tạo schema trên Databricks SQL:
 ```sql
-CREATE DATABASE NetflixDB;
-
-CREATE TABLE Users (
-    UserID   INT PRIMARY KEY IDENTITY,
-    Name     NVARCHAR(100),
-    Email    NVARCHAR(100) UNIQUE,
-    Password NVARCHAR(100)
+CREATE TABLE IF NOT EXISTS Users (
+    UserID   BIGINT GENERATED ALWAYS AS IDENTITY,
+    Name     STRING,
+    Email    STRING,
+    Password STRING
 );
 
-CREATE TABLE Movies (
-    MovieID     INT PRIMARY KEY IDENTITY,
-    Title       NVARCHAR(200),
-    Genre       NVARCHAR(100),
-    Description NVARCHAR(MAX)
+CREATE TABLE IF NOT EXISTS Movies (
+    MovieID     BIGINT GENERATED ALWAYS AS IDENTITY,
+    Title       STRING,
+    Genre       STRING,
+    Description STRING
 );
 
-CREATE TABLE WatchHistory (
-    HistoryID INT PRIMARY KEY IDENTITY,
-    UserID    INT FOREIGN KEY REFERENCES Users(UserID),
-    MovieID   INT FOREIGN KEY REFERENCES Movies(MovieID),
+CREATE TABLE IF NOT EXISTS WatchHistory (
+    HistoryID BIGINT GENERATED ALWAYS AS IDENTITY,
+    UserID    BIGINT,
+    MovieID   BIGINT,
     WatchTime INT,
-    Rating    FLOAT,
-    CreatedAt DATETIME DEFAULT GETDATE()
+    Rating    DOUBLE,
+    CreatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP()
 );
 
 -- Thêm phim mẫu
@@ -186,30 +182,6 @@ npm run dev
 
 ---
 
-## ☁️ Triển khai trên Databricks
-
-### Export data ra CSV
-```bash
-cd backend
-node export.js
-# Tạo ra: movies.csv, users.csv, watchhistory.csv
-```
-
-### Upload lên Databricks
-1. Vào **Databricks Community Edition**
-2. **Data Ingestion** → **Upload files**
-3. Upload 3 file CSV vào Volume `/Volumes/main/default/data_netflix/`
-
-### Chạy Notebook phân tích
-Notebook `Netflix_Analysis` trên Databricks Workspace thực hiện:
-- Load data từ Volume bằng Apache Spark
-- Phân tích phim được xem nhiều nhất
-- Thống kê rating trung bình theo thể loại
-- Visualize biểu đồ bằng matplotlib
-- Lưu kết quả vào **Delta Lake Tables**
-
----
-
 ## 🌐 External API
 
 **OMDb API** — `http://www.omdbapi.com`
@@ -224,4 +196,3 @@ Dùng để kiểm tra phim có tồn tại và lấy thông tin:
 ## 👨‍💻 Tác giả
 
 - **GitHub:** [cauchunhovuive](https://github.com/cauchunhovuive)
-    
