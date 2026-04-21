@@ -126,35 +126,29 @@ export default function App() {
     setStreamMsg({ text: "", type: "" });
     setStreamUrl(null);
     try {
-      // ── Thay đoạn mock dưới đây bằng API thật của bạn ──
-      // const res = await fetch(`${API}/movies/${selectedMovie.MovieID}/stream`);
-      // if (!res.ok) {
-      //   const err = await res.json();
-      //   setStreamMsg({ text: err.message || "Phim chưa có nguồn phát.", type: "error" });
-      //   setStreamLoading(false);
-      //   return;
-      // }
-      // const data = await res.json();
-      // setStreamUrl(data.url); // hoặc data.stream_url tùy API trả về
-      // ────────────────────────────────────────────────────
+      const res = await fetch(
+        `http://www.omdbapi.com/?t=${encodeURIComponent(selectedMovie.Title)}&apikey=5a5767ab`
+      );
+      const data = await res.json();
 
-      // Mock: giả lập delay mạng 1 giây
-      await new Promise(r => setTimeout(r, 1000));
-
-      // Mock: phim MovieID chẵn → tồn tại, lẻ → không tồn tại (để demo 2 trường hợp)
-      const exists = selectedMovie.MovieID % 2 === 0;
-
-      if (!exists) {
-        setStreamMsg({ text: "Phim chưa có nguồn phát. Vui lòng thử lại sau.", type: "error" });
+      if (data.Response === "False") {
+        setStreamMsg({ text: "Không tìm thấy phim trên OMDb.", type: "error" });
         setStreamLoading(false);
         return;
       }
 
-      // Mock URL — thay bằng URL thật từ API
-      const mockUrl = "https://www.w3schools.com/html/mov_bbb.mp4";
-      setStreamUrl(mockUrl);
+      // Phim tồn tại → hiện thông tin
+      setStreamMsg({
+        text: `✅ ${data.Title} (${data.Year}) · IMDb: ${data.imdbRating}⭐ · ${data.Runtime} · ${data.Genre}`,
+        type: "success"
+      });
+
+      // Hiện poster nếu có
+      if (data.Poster && data.Poster !== "N/A") {
+        setStreamUrl(data.Poster);
+      }
     } catch {
-      setStreamMsg({ text: "Không kết nối được server", type: "error" });
+      setStreamMsg({ text: "Không kết nối được OMDb", type: "error" });
     }
     setStreamLoading(false);
   }
@@ -319,13 +313,11 @@ export default function App() {
       {selectedMovie && (
         <div className="modal-overlay" onClick={e => { if (e.target === e.currentTarget) closeModal(); }}>
           <div className="modal">
-            <div className="modal-header" style={{ background: streamUrl ? "#000" : BG_COLORS[movies.indexOf(selectedMovie) % BG_COLORS.length] }}>
+            <div className="modal-header" style={{ background: BG_COLORS[movies.indexOf(selectedMovie) % BG_COLORS.length] }}>
               {streamUrl ? (
-                <video
-                  key={streamUrl}
+                <img
                   src={streamUrl}
-                  controls
-                  autoPlay
+                  alt="poster"
                   style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
                 />
               ) : (
@@ -347,8 +339,8 @@ export default function App() {
                 {streamLoading
                   ? <><span className="spinner" /> Đang kiểm tra...</>
                   : streamUrl
-                    ? "↺ Phát lại"
-                    : "▶ Xem phim"}
+                    ? "↺ Kiểm tra lại"
+                    : "🔍 Kiểm tra phim"}
               </button>
               {streamMsg.text && (
                 <div className={`msg ${streamMsg.type}`} style={{ marginTop: 8 }}>

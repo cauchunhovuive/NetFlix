@@ -440,14 +440,20 @@ body {
   align-items: center;
   justify-content: center;
   overflow: hidden;
-  transition: background 0.3s;
+  transition: all 0.3s;
 }
 
-.modal-header video {
+/* Khi có poster thì tự giãn chiều cao */
+.modal-header:has(img) {
+  height: auto;
+  max-height: 300px;
+}
+
+.modal-header img {
   width: 100%;
-  height: 100%;
-  object-fit: cover;
   display: block;
+  object-fit: cover;
+  object-position: center top;
 }
 
 .modal-body { padding: 1.5rem; }
