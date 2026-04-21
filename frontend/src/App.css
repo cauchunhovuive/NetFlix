@@ -589,3 +589,58 @@ body {
 }
 
 .btn-close:hover { border-color: var(--border-hover); color: var(--text); }
+/* ========== STREAM BUTTON ========== */
+.btn-stream {
+  width: 100%;
+  padding: 11px;
+  background: var(--red);
+  border: none;
+  border-radius: 8px;
+  color: #fff;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  margin-top: 8px;
+  transition: background 0.2s, transform 0.1s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.btn-stream:hover { background: var(--red-dark); }
+.btn-stream:active { transform: scale(0.98); }
+
+/* ========== PLAYER OVERLAY ========== */
+.player-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.95);
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.player-container {
+  position: relative;
+  width: 90vw;
+  height: 85vh;
+}
+
+.player-close {
+  position: absolute;
+  top: -40px;
+  right: 0;
+  background: none;
+  border: none;
+  color: white;
+  font-size: 28px;
+  cursor: pointer;
+  opacity: 0.8;
+  transition: opacity 0.2s;
+  line-height: 1;
+}
+
+.player-close:hover { opacity: 1; }

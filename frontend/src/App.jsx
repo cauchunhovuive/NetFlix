@@ -8,7 +8,7 @@ const EMOJIS = ["🎬", "🎭", "🎥", "🍿", "🎞️", "🎦"];
 
 export default function App() {
   const [user, setUser] = useState(null);
-  const [page, setPage] = useState("auth"); // auth | main
+  const [page, setPage] = useState("auth");
   const [tab, setTab] = useState("movies");
   const [authTab, setAuthTab] = useState("login");
 
@@ -32,6 +32,9 @@ export default function App() {
   const [streamUrl, setStreamUrl] = useState(null);
   const [streamLoading, setStreamLoading] = useState(false);
   const [streamMsg, setStreamMsg] = useState({ text: "", type: "" });
+
+  // Player state
+  const [playerOpen, setPlayerOpen] = useState(false);
 
   useEffect(() => {
     if (page === "main") {
@@ -137,13 +140,11 @@ export default function App() {
         return;
       }
 
-      // Phim tồn tại → hiện thông tin
       setStreamMsg({
         text: `✅ ${data.Title} (${data.Year}) · IMDb: ${data.imdbRating}⭐ · ${data.Runtime} · ${data.Genre}`,
         type: "success"
       });
 
-      // Hiện poster nếu có
       if (data.Poster && data.Poster !== "N/A") {
         setStreamUrl(data.Poster);
       }
@@ -160,6 +161,7 @@ export default function App() {
     setStreamUrl(null);
     setStreamMsg({ text: "", type: "" });
     setStreamLoading(false);
+    setPlayerOpen(false);
   }
 
   function doLogout() {
@@ -246,7 +248,14 @@ export default function App() {
             {loadingMovies ? <div className="loading">Đang tải...</div> : (
               <div className="movies-grid">
                 {movies.map((m, i) => (
-                  <div key={m.MovieID} className="movie-card" onClick={() => { setSelectedMovie(m); setWatchMsg({ text: "", type: "" }); setWatchForm({ watch_time: "", rating: "" }); setStreamUrl(null); setStreamMsg({ text: "", type: "" }); }}>
+                  <div key={m.MovieID} className="movie-card" onClick={() => {
+                    setSelectedMovie(m);
+                    setWatchMsg({ text: "", type: "" });
+                    setWatchForm({ watch_time: "", rating: "" });
+                    setStreamUrl(null);
+                    setStreamMsg({ text: "", type: "" });
+                    setPlayerOpen(false);
+                  }}>
                     <div className="movie-thumb" style={{ background: BG_COLORS[i % BG_COLORS.length] }}>
                       <span className="movie-emoji">{EMOJIS[i % EMOJIS.length]}</span>
                     </div>
@@ -330,7 +339,7 @@ export default function App() {
               <div className="modal-genre">{selectedMovie.Genre}</div>
               <p className="modal-desc">{selectedMovie.Description || "Không có mô tả"}</p>
 
-              {/* Nút xem phim */}
+              {/* Nút kiểm tra phim (OMDb) */}
               <button
                 className="btn-play"
                 onClick={doWatchMovie}
@@ -342,10 +351,21 @@ export default function App() {
                     ? "↺ Kiểm tra lại"
                     : "🔍 Kiểm tra phim"}
               </button>
+
               {streamMsg.text && (
                 <div className={`msg ${streamMsg.type}`} style={{ marginTop: 8 }}>
                   {streamMsg.text}
                 </div>
+              )}
+
+              {/* Nút xem phim qua SpenEmbed */}
+              {selectedMovie.TMDB_ID && (
+                <button
+                  className="btn-stream"
+                  onClick={() => setPlayerOpen(true)}
+                >
+                  ▶ Xem phim
+                </button>
               )}
 
               {/* Form lưu lịch sử */}
@@ -367,6 +387,24 @@ export default function App() {
 
               <button className="btn-close" onClick={closeModal}>Đóng</button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Player Overlay - SpenEmbed iframe */}
+      {playerOpen && selectedMovie && (
+        <div className="player-overlay" onClick={e => { if (e.target === e.currentTarget) setPlayerOpen(false); }}>
+          <div className="player-container">
+            <button className="player-close" onClick={() => setPlayerOpen(false)}>✕</button>
+            <iframe
+              src={`https://spencerdevs.xyz/movie/${selectedMovie.TMDB_ID}?theme=e50914`}
+              width="100%"
+              height="100%"
+              frameBorder="0"
+              allowFullScreen
+              allow="autoplay; encrypted-media"
+              style={{ borderRadius: 12 }}
+            />
           </div>
         </div>
       )}
