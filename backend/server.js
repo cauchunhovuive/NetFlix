@@ -1,149 +1,131 @@
 const express = require("express");
-const sql = require("mssql");
 const cors = require("cors");
+const { DBSQLClient } = require("@databricks/sql");
 
 const app = express();
-
 app.use(cors());
 app.use(express.json());
 
-/* ================= DATABASE ================= */
+/* ================= DATABASE CONFIG ================= */
 
-const config = {
-    user: "sa",
-    password: "123456",
-    server: "localhost",
-    database: "NetflixDB",
-    options: {
-        trustServerCertificate: true
-    }
+const serverConfig = {
+    host: "dbc-5d5ac2ba-09bc.cloud.databricks.com",
+    path: "/sql/1.0/warehouses/a610c57606d351ac",
+    token: "dapid5f2283a08db03c876a85091ed6324d5" 
 };
 
-// Tạo pool và export để dùng lại
-const poolPromise = sql.connect(config)
-    .then(pool => {
-        console.log("Connected to SQL Server");
-        return pool;
-    })
-    .catch(err => {
-        console.log("Database connection failed:", err);
-        process.exit(1); // Dừng server nếu không kết nối được
-    });
+const client = new DBSQLClient();
+
+// Hàm mở phiên làm việc (Session)
+async function getSession() {
+    const connection = await client.connect(serverConfig);
+    return await connection.openSession();
+}
 
 /* ================= ROUTES ================= */
-
-// movies
-app.get("/movies", async (req, res) => {
-    try {
-        const pool = await poolPromise;
-        const result = await pool.request().query("SELECT * FROM Movies");
-        res.json(result.recordset);
-    } catch (err) {
-        console.log(err);
-        res.status(500).send("Error fetching movies");
-    }
-});
-
-// watch - dùng parameterized query để tránh SQL Injection
-app.post("/watch", async (req, res) => {
-    try {
-        const { user_id, movie_id, watch_time, rating } = req.body;
-        const pool = await poolPromise;
-
-        await pool.request()
-            .input("user_id", sql.Int, user_id)
-            .input("movie_id", sql.Int, movie_id)
-            .input("watch_time", sql.Int, watch_time)
-            .input("rating", sql.Float, rating)
-            .query(`
-                INSERT INTO WatchHistory (UserID, MovieID, WatchTime, Rating)
-                VALUES (@user_id, @movie_id, @watch_time, @rating)
-            `);
-
-        res.send("Watch history saved");
-    } catch (err) {
-        console.log(err);
-        res.status(500).send("Error saving watch history");
-    }
-});
-
-// history
-app.get("/history", async (req, res) => {
-    try {
-        const pool = await poolPromise;
-        const result = await pool.request().query(`
-            SELECT 
-                wh.HistoryID,
-                wh.UserID,
-                wh.MovieID,
-                u.Name,
-                m.Title,
-                wh.WatchTime,
-                wh.Rating,
-                wh.CreatedAt
-            FROM WatchHistory wh
-            JOIN Users u ON wh.UserID = u.UserID
-            JOIN Movies m ON wh.MovieID = m.MovieID
-        `);
-        res.json(result.recordset);
-    } catch (err) {
-        console.log(err);
-        res.status(500).send("Error fetching history");
-    }
-});
-// Đăng ký
-app.post("/register", async (req, res) => {
-    try {
-        const { name, email, password } = req.body;
-        const pool = await poolPromise;
-
-        // Kiểm tra email đã tồn tại chưa
-        const check = await pool.request()
-            .input("email", sql.NVarChar, email)
-            .query("SELECT * FROM Users WHERE Email = @email");
-
-        if (check.recordset.length > 0) {
-            return res.status(400).json({ message: "Email đã tồn tại" });
-        }
-
-        await pool.request()
-            .input("name", sql.NVarChar, name)
-            .input("email", sql.NVarChar, email)
-            .input("password", sql.NVarChar, password)
-            .query("INSERT INTO Users (Name, Email, Password) VALUES (@name, @email, @password)");
-
-        res.json({ message: "Đăng ký thành công" });
-    } catch (err) {
-        console.log(err);
-        res.status(500).json({ message: "Lỗi server" });
-    }
-});
-
-// Đăng nhập
 app.post("/login", async (req, res) => {
+    let session;
     try {
         const { email, password } = req.body;
-        const pool = await poolPromise;
+        session = await getSession();
 
-        const result = await pool.request()
-            .input("email", sql.NVarChar, email)
-            .input("password", sql.NVarChar, password)
-            .query("SELECT UserID, Name, Email FROM Users WHERE Email = @email AND Password = @password");
+        const sql = `
+            SELECT UserID, Name, Email 
+            FROM workspace.netflixdb.users 
+            WHERE Email = '${email}' AND Password = '${password}'
+        `;
+        
+        const query = await session.executeStatement(sql);
+        const result = await query.fetchAll();
+        await query.close();
 
-        if (result.recordset.length === 0) {
+        if (result.length === 0) {
             return res.status(401).json({ message: "Email hoặc mật khẩu không đúng" });
         }
 
-        res.json({ user: result.recordset[0] });
+        // Trả về user đầu tiên tìm thấy
+        res.json({ user: result[0] });
     } catch (err) {
-        console.log(err);
-        res.status(500).json({ message: "Lỗi server" });
+        console.error("Lỗi đăng nhập:", err);
+        res.status(500).json({ message: "Lỗi server khi đăng nhập" });
+    } finally {
+        if (session) await session.close();
     }
 });
-/* ================= START SERVER ================= */
+// Lấy danh sách phim
+app.get("/movies", async (req, res) => {
+    let session;
+    try {
+        session = await getSession();
+        // Sử dụng tên đầy đủ: workspace.netflixdb.movies
+        const query = await session.executeStatement("SELECT * FROM workspace.netflixdb.movies");
+        const result = await query.fetchAll();
+        await query.close();
+        res.json(result);
+    } catch (err) {
+        console.error(err);
+        res.status(500).send("Lỗi lấy dữ liệu phim");
+    } finally {
+        if (session) await session.close();
+    }
+});
+
+// Đăng ký người dùng
+app.post("/register", async (req, res) => {
+    let session;
+    try {
+        const { name, email, password } = req.body;
+        session = await getSession();
+
+        // Kiểm tra trùng email
+        const check = await session.executeStatement(`SELECT * FROM workspace.netflixdb.users WHERE Email = '${email}'`);
+        const rows = await check.fetchAll();
+        await check.close();
+
+        if (rows.length > 0) return res.status(400).json({ message: "Email đã tồn tại" });
+
+        // Chèn user mới (Cột UserID thường tự tăng hoặc bạn phải xử lý)
+        await session.executeStatement(`
+            INSERT INTO workspace.netflixdb.users (Name, Email, Password)
+            VALUES ('${name}', '${email}', '${password}')
+        `);
+
+        res.json({ message: "Đăng ký thành công" });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: "Lỗi server" });
+    } finally {
+        if (session) await session.close();
+    }
+});
+
+// Xem lịch sử (Join 3 bảng)
+app.get("/history", async (req, res) => {
+    let session;
+    try {
+        session = await getSession();
+        const sql = `
+            SELECT 
+                wh.HistoryID, u.Name, m.Title, wh.WatchTime, wh.Rating
+            FROM workspace.netflixdb.watchhistory wh
+            JOIN workspace.netflixdb.users u ON wh.UserID = u.UserID
+            JOIN workspace.netflixdb.movies m ON wh.MovieID = m.MovieID
+        `;
+        const query = await session.executeStatement(sql);
+        const result = await query.fetchAll();
+        await query.close();
+        res.json(result);
+    } catch (err) {
+        console.error(err);
+        res.status(500).send("Lỗi lấy lịch sử");
+    } finally {
+        if (session) await session.close();
+    }
+});
+
+/* ================= START ================= */
 
 const PORT = 3000;
-
 app.listen(PORT, () => {
-    console.log("Server running on port " + PORT);
+    console.log(`🚀 Server đang chạy tại http://localhost:${PORT}`);
 });
