@@ -30,7 +30,7 @@
 | Frontend | React, Vite, CSS |
 | Backend | Node.js, Express.js |
 | Database | Databricks SQL Warehouse, Delta Lake |
-| External API | OMDb API |
+| External API | OMDb API, |
 | Cloud | Databricks Community Edition |
 | Version Control | Git, GitHub |
 
@@ -76,15 +76,6 @@ cd NetFlix
 cd backend
 npm install
 ```
-
-Tạo file `.env` trong thư mục `backend/`:
-```env
-DATABRICKS_HOST=https://<your-workspace>.azuredatabricks.net
-DATABRICKS_TOKEN=<your-personal-access-token>
-DATABRICKS_HTTP_PATH=/sql/1.0/warehouses/<warehouse-id>
-```
-
-> ⚠️ Không commit file `.env` lên GitHub. Thêm vào `.gitignore`.
 
 Cấu hình kết nối trong `server.js`:
 ```js
