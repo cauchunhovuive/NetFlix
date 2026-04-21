@@ -23,6 +23,9 @@ export default function App() {
   const [loadingMovies, setLoadingMovies] = useState(false);
   const [loadingHistory, setLoadingHistory] = useState(false);
 
+  // Filter state
+  const [selectedGenre, setSelectedGenre] = useState("Tất cả");
+
   // Modal state
   const [selectedMovie, setSelectedMovie] = useState(null);
   const [watchForm, setWatchForm] = useState({ watch_time: "", rating: "" });
@@ -172,6 +175,14 @@ export default function App() {
     setAuthMsg({ text: "", type: "" });
   }
 
+  // Lấy danh sách genre không trùng
+  const genres = ["Tất cả", ...new Set(movies.map(m => m.Genre).filter(Boolean))];
+
+  // Lọc phim theo genre
+  const filteredMovies = selectedGenre === "Tất cả"
+    ? movies
+    : movies.filter(m => m.Genre === selectedGenre);
+
   const avgRating = history.length ? (history.reduce((s, r) => s + (r.Rating || 0), 0) / history.length).toFixed(1) : "—";
   const totalMins = history.reduce((s, r) => s + (r.WatchTime || 0), 0);
 
@@ -244,10 +255,26 @@ export default function App() {
         {/* Movies Tab */}
         {tab === "movies" && (
           <div>
-            <p className="section-label">Danh sách phim</p>
+{/* Genre Filter Select */}
+<div className="genre-select-wrap">
+  <select
+    className="genre-select"
+    value={selectedGenre}
+    onChange={e => setSelectedGenre(e.target.value)}
+  >
+    {genres.map(g => (
+      <option key={g} value={g}>{g}</option>
+    ))}
+  </select>
+</div>
+
+            <p className="section-label">
+              {selectedGenre === "Tất cả" ? "Tất cả phim" : selectedGenre} · {filteredMovies.length} phim
+            </p>
+
             {loadingMovies ? <div className="loading">Đang tải...</div> : (
               <div className="movies-grid">
-                {movies.map((m, i) => (
+                {filteredMovies.map((m, i) => (
                   <div key={m.MovieID} className="movie-card" onClick={() => {
                     setSelectedMovie(m);
                     setWatchMsg({ text: "", type: "" });
@@ -266,6 +293,9 @@ export default function App() {
                     </div>
                   </div>
                 ))}
+                {filteredMovies.length === 0 && (
+                  <div className="loading">Không có phim nào trong thể loại này</div>
+                )}
               </div>
             )}
           </div>
