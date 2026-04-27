@@ -12,31 +12,25 @@ export default function App() {
   const [tab, setTab] = useState("movies");
   const [authTab, setAuthTab] = useState("login");
 
-  // Auth state
   const [loginForm, setLoginForm] = useState({ email: "", password: "" });
   const [registerForm, setRegisterForm] = useState({ name: "", email: "", password: "" });
   const [authMsg, setAuthMsg] = useState({ text: "", type: "" });
 
-  // Data state
   const [movies, setMovies] = useState([]);
   const [history, setHistory] = useState([]);
   const [loadingMovies, setLoadingMovies] = useState(false);
   const [loadingHistory, setLoadingHistory] = useState(false);
 
-  // Filter state
   const [selectedGenre, setSelectedGenre] = useState("Tất cả");
 
-  // Modal state
   const [selectedMovie, setSelectedMovie] = useState(null);
   const [watchForm, setWatchForm] = useState({ watch_time: "", rating: "" });
   const [watchMsg, setWatchMsg] = useState({ text: "", type: "" });
 
-  // Stream state
   const [streamUrl, setStreamUrl] = useState(null);
   const [streamLoading, setStreamLoading] = useState(false);
   const [streamMsg, setStreamMsg] = useState({ text: "", type: "" });
 
-  // Player state
   const [playerOpen, setPlayerOpen] = useState(false);
 
   useEffect(() => {
@@ -121,6 +115,9 @@ export default function App() {
         setWatchMsg({ text: "Đã lưu lịch sử xem!", type: "success" });
         fetchHistory();
         setTimeout(() => { closeModal(); }, 1200);
+      } else {
+        const data = await res.json();
+        setWatchMsg({ text: data.message || "Lỗi lưu dữ liệu", type: "error" });
       }
     } catch {
       setWatchMsg({ text: "Lỗi lưu dữ liệu", type: "error" });
@@ -136,18 +133,15 @@ export default function App() {
         `http://www.omdbapi.com/?t=${encodeURIComponent(selectedMovie.Title)}&apikey=5a5767ab`
       );
       const data = await res.json();
-
       if (data.Response === "False") {
         setStreamMsg({ text: "Không tìm thấy phim trên OMDb.", type: "error" });
         setStreamLoading(false);
         return;
       }
-
       setStreamMsg({
         text: `✅ ${data.Title} (${data.Year}) · IMDb: ${data.imdbRating}⭐ · ${data.Runtime} · ${data.Genre}`,
         type: "success"
       });
-
       if (data.Poster && data.Poster !== "N/A") {
         setStreamUrl(data.Poster);
       }
@@ -175,23 +169,32 @@ export default function App() {
     setAuthMsg({ text: "", type: "" });
   }
 
-  // Lấy danh sách genre không trùng
   const genres = ["Tất cả", ...new Set(movies.map(m => m.Genre).filter(Boolean))];
-
-  // Lọc phim theo genre
   const filteredMovies = selectedGenre === "Tất cả"
     ? movies
     : movies.filter(m => m.Genre === selectedGenre);
 
-  const avgRating = history.length ? (history.reduce((s, r) => s + (r.Rating || 0), 0) / history.length).toFixed(1) : "—";
+  const avgRating = history.length
+    ? (history.reduce((s, r) => s + (r.Rating || 0), 0) / history.length).toFixed(1)
+    : "—";
   const totalMins = history.reduce((s, r) => s + (r.WatchTime || 0), 0);
+
+  // ✅ Sửa: so sánh đúng kiểu để đếm phim đã xem của user hiện tại
+  const myWatchedMovies = new Set(
+  history
+    .filter(h => {
+      const hUID = h.UserID ?? h.userid ?? h.USERID;
+      const uUID = user?.UserID ?? user?.userid;
+      return Number(hUID) === Number(uUID);
+    })
+    .map(h => h.MovieID ?? h.movieid ?? h.MOVIEID)
+).size;
 
   if (page === "auth") {
     return (
       <div className="auth-bg">
         <div className="auth-card">
           <div className="auth-logo">NETFLIX</div>
-
           <div className="auth-tabs">
             <button className={authTab === "login" ? "auth-tab active" : "auth-tab"} onClick={() => { setAuthTab("login"); setAuthMsg({ text: "", type: "" }); }}>Đăng nhập</button>
             <button className={authTab === "register" ? "auth-tab active" : "auth-tab"} onClick={() => { setAuthTab("register"); setAuthMsg({ text: "", type: "" }); }}>Đăng ký</button>
@@ -255,18 +258,17 @@ export default function App() {
         {/* Movies Tab */}
         {tab === "movies" && (
           <div>
-{/* Genre Filter Select */}
-<div className="genre-select-wrap">
-  <select
-    className="genre-select"
-    value={selectedGenre}
-    onChange={e => setSelectedGenre(e.target.value)}
-  >
-    {genres.map(g => (
-      <option key={g} value={g}>{g}</option>
-    ))}
-  </select>
-</div>
+            <div className="genre-select-wrap">
+              <select
+                className="genre-select"
+                value={selectedGenre}
+                onChange={e => setSelectedGenre(e.target.value)}
+              >
+                {genres.map(g => (
+                  <option key={g} value={g}>{g}</option>
+                ))}
+              </select>
+            </div>
 
             <p className="section-label">
               {selectedGenre === "Tất cả" ? "Tất cả phim" : selectedGenre} · {filteredMovies.length} phim
@@ -307,7 +309,7 @@ export default function App() {
             <div className="stats-row">
               <div className="stat-card"><div className="stat-label">Tổng lượt xem</div><div className="stat-value">{history.length}</div></div>
               <div className="stat-card"><div className="stat-label">Rating trung bình</div><div className="stat-value">{avgRating} ★</div></div>
-              <div className="stat-card"><div className="stat-label">Tổng thời gian</div><div className="stat-value">{Math.round(totalMins / 60)}h {totalMins % 60}p</div></div>
+              <div className="stat-card"><div className="stat-label">Tổng thời gian</div><div className="stat-value">{Math.floor(totalMins / 60)}h {totalMins % 60}p</div></div>
             </div>
             <p className="section-label">Lịch sử xem</p>
             {loadingHistory ? <div className="loading">Đang tải...</div> : (
@@ -342,7 +344,8 @@ export default function App() {
               <hr className="profile-sep" />
               <div className="profile-row"><span>User ID</span><span>#{user?.UserID}</span></div>
               <div className="profile-row"><span>Email</span><span>{user?.Email}</span></div>
-              <div className="profile-row"><span>Phim đã xem</span><span>{new Set(history.filter(h => h.UserID === user?.UserID).map(h => h.MovieID)).size} phim</span></div>
+              {/* ✅ Sửa: dùng myWatchedMovies đã tính đúng */}
+              <div className="profile-row"><span>Phim đã xem</span><span>{myWatchedMovies} phim</span></div>
             </div>
           </div>
         )}
@@ -369,17 +372,10 @@ export default function App() {
               <div className="modal-genre">{selectedMovie.Genre}</div>
               <p className="modal-desc">{selectedMovie.Description || "Không có mô tả"}</p>
 
-              {/* Nút kiểm tra phim (OMDb) */}
-              <button
-                className="btn-play"
-                onClick={doWatchMovie}
-                disabled={streamLoading}
-              >
+              <button className="btn-play" onClick={doWatchMovie} disabled={streamLoading}>
                 {streamLoading
                   ? <><span className="spinner" /> Đang kiểm tra...</>
-                  : streamUrl
-                    ? "↺ Kiểm tra lại"
-                    : "🔍 Kiểm tra phim"}
+                  : streamUrl ? "↺ Kiểm tra lại" : "🔍 Kiểm tra phim"}
               </button>
 
               {streamMsg.text && (
@@ -388,17 +384,12 @@ export default function App() {
                 </div>
               )}
 
-              {/* Nút xem phim qua SpenEmbed */}
               {selectedMovie.TMDB_ID && (
-                <button
-                  className="btn-stream"
-                  onClick={() => setPlayerOpen(true)}
-                >
+                <button className="btn-stream" onClick={() => setPlayerOpen(true)}>
                   ▶ Xem phim
                 </button>
               )}
 
-              {/* Form lưu lịch sử */}
               <div className="watch-form">
                 <p className="watch-label">Ghi lại lịch sử xem</p>
                 <div className="watch-row">
@@ -421,7 +412,7 @@ export default function App() {
         </div>
       )}
 
-      {/* Player Overlay - SpenEmbed iframe */}
+      {/* Player Overlay */}
       {playerOpen && selectedMovie && (
         <div className="player-overlay" onClick={e => { if (e.target === e.currentTarget) setPlayerOpen(false); }}>
           <div className="player-container">
