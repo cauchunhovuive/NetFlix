@@ -33,7 +33,7 @@ router.get("/history", async (req, res) => {
         session = await getSession();
         const sql = `
             SELECT 
-                wh.HistoryID, wh.UserID, u.Name, m.Title, wh.WatchTime, wh.Rating, wh.CreatedAt
+                wh.HistoryID, wh.UserID, wh.MovieID, u.Name, m.Title, wh.WatchTime, wh.Rating, wh.CreatedAt
             FROM workspace.netflixdb.watchhistory wh
             JOIN workspace.netflixdb.users u ON wh.UserID = u.UserID
             JOIN workspace.netflixdb.movies m ON wh.MovieID = m.MovieID

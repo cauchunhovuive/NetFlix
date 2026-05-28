@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import RippleButton from "../components/RippleButton";
 import PosterImage from "../components/PosterImage";
 import { translateGenre } from "../utils/vietsub";
@@ -7,9 +7,11 @@ export default function MoviesTab({
   movies, loadingMovies, cardsVisible, selectedGenre, filteredMovies,
   genres, heroMovie, heroIndex, purchasedIds, favoriteIds,
   onSetSelectedGenre, onOpenMovie, onSetHeroIndex, onToggleFavorite,
-  searchQuery, onSetSearchQuery,
+  searchQuery, onSetSearchQuery, user,
 }) {
   const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
+  const [page, setPage] = useState(1);
+  const ITEMS_PER_PAGE = 8;
 
   // Apply search + favorites filter
   let displayMovies = filteredMovies;
@@ -22,6 +24,19 @@ export default function MoviesTab({
   if (showFavoritesOnly) {
     displayMovies = displayMovies.filter((m) => favoriteIds.has(Number(m.MovieID)));
   }
+
+  // Pagination
+  const totalPages = Math.max(1, Math.ceil(displayMovies.length / ITEMS_PER_PAGE));
+  const safePage = Math.min(page, totalPages);
+  const paginatedMovies = displayMovies.slice(
+    (safePage - 1) * ITEMS_PER_PAGE,
+    safePage * ITEMS_PER_PAGE
+  );
+
+  // Reset page when filters change
+  useEffect(() => {
+    setPage(1);
+  }, [searchQuery, showFavoritesOnly, selectedGenre]);
 
   return (
     <>
@@ -97,11 +112,13 @@ export default function MoviesTab({
 
         {/* Only show genre pills when not searching */}
         {!searchQuery && !showFavoritesOnly && (
-          <div className="genre-pills">
-            {genres.map(g => (
-              <RippleButton key={g} className={selectedGenre === g ? "genre-pill active" : "genre-pill"}
-                onClick={() => onSetSelectedGenre(g)}>{g}</RippleButton>
-            ))}
+          <div className="genre-pills-wrap">
+            <div className="genre-pills">
+              {genres.map(g => (
+                <RippleButton key={g} className={selectedGenre === g ? "genre-pill active" : "genre-pill"}
+                  onClick={() => onSetSelectedGenre(g)}>{g}</RippleButton>
+              ))}
+            </div>
           </div>
         )}
 
@@ -124,7 +141,7 @@ export default function MoviesTab({
           </div>
         ) : (
           <div className="movies-grid">
-            {displayMovies.map((m, i) => (
+            {paginatedMovies.map((m, i) => (
               <div key={m.MovieID}
                 className={`movie-card ${cardsVisible ? "card-visible" : ""}`}
                 style={{ animationDelay: `${Math.min(i * 50, 500)}ms` }}
@@ -144,14 +161,16 @@ export default function MoviesTab({
                     <button className="btn-card-info" onClick={e => { e.stopPropagation(); onOpenMovie(m); }}>⋯</button>
                   </div>
                   <div className="movie-card-rank">{i + 1}</div>
-                  {/* Favorite heart button */}
-                  <button
-                    className={`fav-heart-btn ${favoriteIds.has(Number(m.MovieID)) ? "active" : ""}`}
-                    onClick={(e) => { e.stopPropagation(); onToggleFavorite(m.MovieID); }}
-                    title={favoriteIds.has(Number(m.MovieID)) ? "Bỏ yêu thích" : "Thêm yêu thích"}
-                  >
-                    {favoriteIds.has(Number(m.MovieID)) ? "❤️" : "🤍"}
-                  </button>
+                  {/* Favorite heart button — only for regular users */}
+                  {user?.Role !== "Admin" && (
+                    <button
+                      className={`fav-heart-btn ${favoriteIds.has(Number(m.MovieID)) ? "active" : ""}`}
+                      onClick={(e) => { e.stopPropagation(); onToggleFavorite(m.MovieID); }}
+                      title={favoriteIds.has(Number(m.MovieID)) ? "Bỏ yêu thích" : "Thêm yêu thích"}
+                    >
+                      {favoriteIds.has(Number(m.MovieID)) ? "❤️" : "🤍"}
+                    </button>
+                  )}
                 </div>
                 <div className="movie-info">
                   <div className="movie-title">{m.Title}</div>
@@ -160,7 +179,7 @@ export default function MoviesTab({
                 </div>
               </div>
             ))}
-            {displayMovies.length === 0 && (
+            {paginatedMovies.length === 0 && (
               <div className="empty-state" style={{ gridColumn: "1/-1" }}>
                 <div className="empty-state-icon">
                   {searchQuery ? "🔍" : showFavoritesOnly ? "❤️" : "🎬"}
@@ -174,6 +193,45 @@ export default function MoviesTab({
                 </div>
               </div>
             )}
+          </div>
+        )}
+
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div className="pagination">
+            <button
+              className="page-btn"
+              disabled={safePage <= 1}
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+            >
+              ‹ Trước
+            </button>
+            <div className="page-numbers">
+              {Array.from({ length: Math.min(totalPages, 7) }, (_, i) => {
+                let pn;
+                if (totalPages <= 7) pn = i + 1;
+                else if (safePage <= 4) pn = i + 1;
+                else if (safePage >= totalPages - 3) pn = totalPages - 6 + i;
+                else pn = safePage - 3 + i;
+                return (
+                  <button
+                    key={pn}
+                    className={`page-num ${safePage === pn ? "active" : ""}`}
+                    onClick={() => setPage(pn)}
+                  >
+                    {pn}
+                  </button>
+                );
+              })}
+            </div>
+            <button
+              className="page-btn"
+              disabled={safePage >= totalPages}
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+            >
+              Sau ›
+            </button>
+            <span className="page-info">Trang {safePage}/{totalPages}</span>
           </div>
         )}
       </main>

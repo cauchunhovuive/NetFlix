@@ -155,12 +155,13 @@ export default function App() {
     }, 300);
   }
 
-  // Derived data
-  const genres = ["Tất cả", ...new Set(movies.movies.map((m) => m.Genre).filter(Boolean))];
+  // Derived data — split combined genres like "Action, Sci-Fi" into separate items
+  const rawGenres = movies.movies.map((m) => m.Genre).filter(Boolean);
+  const genres = ["Tất cả", ...new Set(rawGenres.flatMap((g) => g.split(",").map((s) => s.trim())))];
   const filteredMovies =
     movies.selectedGenre === "Tất cả"
       ? movies.movies
-      : movies.movies.filter((m) => m.Genre === movies.selectedGenre);
+      : movies.movies.filter((m) => m.Genre?.includes(movies.selectedGenre));
 
   const avgRating = movies.history.length
     ? (movies.history.reduce((s, r) => s + (r.Rating || 0), 0) / movies.history.length).toFixed(1)
@@ -330,6 +331,7 @@ export default function App() {
             onOpenMovie={movies.openMovie}
             onSetHeroIndex={movies.setHeroIndex}
             onToggleFavorite={(movieId) => favorites.toggleFavorite(movieId, user)}
+            user={user}
           />
         )}
 

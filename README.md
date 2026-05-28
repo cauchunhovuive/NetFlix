@@ -158,6 +158,30 @@ node server.js
 
 ---
 
+### 2.5. Seed thêm phim mẫu (tùy chọn)
+
+Mặc định database có sẵn 20 phim. Để thêm 54 phim nổi tiếng (Action, Drama, Horror, Animation...):
+
+**Cách 1 — Qua Databricks SQL Editor (khuyên dùng):**
+```bash
+# Mở file backend/seed-sql.sql, copy nội dung
+# Vào Databricks Community Edition → SQL Editor
+# Paste & Run
+```
+
+**Cách 2 — Upload CSV lên Databricks:**
+```bash
+# Upload backend/seed-new-movies.csv lên Volume
+# Sau đó chạy:
+# COPY INTO workspace.netflixdb.movies
+# FROM '/Volumes/main/default/data_netflix/seed-new-movies.csv'
+# FILEFORMAT = CSV
+```
+
+> ℹ️ `seed-movies.js` (Node.js) không hoạt động với Databricks Community Edition do hạn chế DML.
+
+---
+
 ### 3. Cài đặt & chạy Frontend
 
 ```bash
@@ -269,28 +293,64 @@ npm run dev
 
 ## ☁️ Triển khai trên Databricks
 
-### Export data ra CSV
+### 1. Export data từ Databricks SQL ra CSV
+
+Script export kết nối tới **Databricks SQL** (giống backend) và xuất dữ liệu ra 3 file CSV.
 
 ```bash
 cd backend
 node export.js
-# Tạo ra: movies.csv, users.csv, watchhistory.csv
+# Tạo ra:
+#   ✅ movies.csv      — Danh sách phim (MovieID, Title, Genre...)
+#   ✅ users.csv       — Danh sách user (UserID, Name, Email...)
+#   ✅ watchhistory.csv — Lịch sử xem (HistoryID, UserID, MovieID, WatchTime, Rating, CreatedAt)
 ```
 
-### Upload lên Databricks
+> **Yêu cầu:** File `backend/.env` phải có đủ `DATABRICKS_HOST`, `DATABRICKS_PATH`, `DATABRICKS_TOKEN`
 
-1. Vào **Databricks Community Edition**
-2. **Data Ingestion** → **Upload files**
-3. Upload 3 file CSV vào Volume
+### 2. Upload lên Databricks Volume
 
-### Phân tích với Spark
+1. Vào **Databricks Community Edition** → **Catalog** (hoặc **Data**)
+2. Tạo Volume nếu chưa có (default: `/Volumes/main/default/data_netflix/`)
+3. Vào Volume → **Upload files**
+4. Upload 3 file CSV: `movies.csv`, `users.csv`, `watchhistory.csv`
 
-Notebook `Netflix_Analysis` trên Databricks Workspace thực hiện:
-- Load data từ Volume bằng Apache Spark
-- Phân tích phim được xem nhiều nhất
-- Thống kê rating trung bình theo thể loại
-- Visualize biểu đồ bằng matplotlib
-- Lưu kết quả vào **Delta Lake Tables**
+> **Lưu ý:** Volume path mặc định là `/Volumes/main/default/data_netflix/`. Nếu khác, sửa lại trong notebook.
+
+### 3. Phân tích với Spark Notebook
+
+Mở file `databricks/Netflix_Analysis.py` trong Databricks Workspace:
+1. **Workspace** → **Import** → Chọn file `databricks/Netflix_Analysis.py`
+2. Hoặc copy-paste nội dung vào notebook mới
+3. Chọn cluster (Community Edition có sẵn cluster free)
+4. Chạy từng cell (Shift+Enter)
+
+Notebook thực hiện:
+| Cell | Phân tích |
+|------|-----------|
+| 🔄 | Load 3 CSV từ Volume bằng Apache Spark |
+| 🎬 | **Top 10 phim được xem nhiều nhất** |
+| ⭐ | **Rating trung bình theo thể loại** (tách genre, aggregate) |
+| 👤 | **Top người dùng xem nhiều** |
+| 📅 | **Xu hướng xem theo thời gian** |
+| 📊 | **Visualize biểu đồ** với matplotlib (bar chart, line chart) |
+| 💾 | **Lưu kết quả vào Delta Lake Tables** |
+
+### Kết quả đầu ra (Delta Tables)
+
+Sau khi chạy notebook, các bảng sau sẽ được tạo trong metastore:
+| Table | Mô tả |
+|-------|-------|
+| `netflix_analysis_top_movies` | Top phim + lượt xem + rating TB |
+| `netflix_analysis_genre_ratings` | Rating TB theo từng thể loại |
+| `netflix_analysis_daily_views` | Lượt xem theo ngày |
+
+Có thể query các bảng này bằng SQL sau khi lưu:
+```sql
+SELECT * FROM netflix_analysis_top_movies ORDER BY ViewCount DESC;
+SELECT * FROM netflix_analysis_genre_ratings ORDER BY AvgRating DESC;
+SELECT * FROM netflix_analysis_daily_views ORDER BY WatchDate;
+```
 
 ---
 

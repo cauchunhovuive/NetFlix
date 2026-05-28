@@ -66,14 +66,25 @@ router.post("/send", async (req, res) => {
             VALUES (${user_id}, '${sender_type || 'user'}', '${sanitizedMsg}', '${createdAt}')
         `);
 
-        // Auto-reply when user sends a message
+        // Auto-reply when user sends a message — only if admin hasn't replied in last 10 min
         if ((sender_type || 'user') === 'user') {
-            const replyMsg = "Cảm ơn bạn đã liên hệ với bộ phận hỗ trợ. Chúng tôi đã nhận được tin nhắn của bạn và sẽ phản hồi trong thời gian sớm nhất. Vui lòng chờ admin xử lý.";
-            const replyTime = new Date().toISOString().replace('T', ' ').slice(0, 19);
-            await session.executeStatement(`
-                INSERT INTO workspace.netflixdb.support_messages (UserID, SenderType, Message, CreatedAt)
-                VALUES (${user_id}, 'admin', '${replyMsg}', '${replyTime}')
+            const recentAdminCheck = await session.executeStatement(`
+                SELECT COUNT(*) as cnt FROM workspace.netflixdb.support_messages
+                WHERE UserID = ${user_id} AND SenderType = 'admin'
+                AND CreatedAt >= CURRENT_TIMESTAMP - INTERVAL 10 MINUTES
             `);
+            const recentRows = await recentAdminCheck.fetchAll();
+            await recentAdminCheck.close();
+            const hasRecentAdminReply = parseInt(recentRows[0]?.CNT || recentRows[0]?.cnt || 0) > 0;
+
+            if (!hasRecentAdminReply) {
+                const replyMsg = "Cảm ơn bạn đã liên hệ với bộ phận hỗ trợ. Chúng tôi đã nhận được tin nhắn của bạn và sẽ phản hồi trong thời gian sớm nhất. Vui lòng chờ admin xử lý.";
+                const replyTime = new Date().toISOString().replace('T', ' ').slice(0, 19);
+                await session.executeStatement(`
+                    INSERT INTO workspace.netflixdb.support_messages (UserID, SenderType, Message, CreatedAt)
+                    VALUES (${user_id}, 'admin', '${replyMsg}', '${replyTime}')
+                `);
+            }
         }
 
         res.json({ message: "✓ Đã gửi tin nhắn", createdAt });

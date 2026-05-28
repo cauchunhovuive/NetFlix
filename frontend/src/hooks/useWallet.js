@@ -6,11 +6,15 @@ export function useWallet() {
   const [transactions, setTransactions] = useState([]);
   const [loadingTransactions, setLoadingTransactions] = useState(false);
   const [purchasedMovies, setPurchasedMovies] = useState([]);
-  const [showTopUp, setShowTopUp] = useState(false);
+  const [topUpMsg, setTopUpMsg] = useState({ text: "", type: "" });
+  const [showTopUp, _setShowTopUp] = useState(false);
+  function setShowTopUp(val) {
+    _setShowTopUp(val);
+    if (val) setTopUpMsg({ text: "", type: "" });
+  }
   const [topUpAmount, setTopUpAmount] = useState(50);
   const [topUpVoucher, setTopUpVoucher] = useState("");
   const [topUpLoading, setTopUpLoading] = useState(false);
-  const [topUpMsg, setTopUpMsg] = useState({ text: "", type: "" });
   const [purchaseLoading, setPurchaseLoading] = useState(false);
   const [walletTab, setWalletTab] = useState("transactions");
   const [purchasedIds, setPurchasedIds] = useState(new Set());

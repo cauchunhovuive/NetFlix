@@ -1,4 +1,31 @@
+import { useState } from "react";
 import RippleButton from "../components/RippleButton";
+
+function AdminPagination({ page, totalPages, onSetPage }) {
+  if (totalPages <= 1) return null;
+  return (
+    <div className="pagination">
+      <button className="page-btn" disabled={page <= 1}
+        onClick={() => onSetPage(p => Math.max(1, p - 1))}>‹ Trước</button>
+      <div className="page-numbers">
+        {Array.from({ length: Math.min(totalPages, 7) }, (_, i) => {
+          let pn;
+          if (totalPages <= 7) pn = i + 1;
+          else if (page <= 4) pn = i + 1;
+          else if (page >= totalPages - 3) pn = totalPages - 6 + i;
+          else pn = page - 3 + i;
+          return (
+            <button key={pn} className={`page-num ${page === pn ? "active" : ""}`}
+              onClick={() => onSetPage(pn)}>{pn}</button>
+          );
+        })}
+      </div>
+      <button className="page-btn" disabled={page >= totalPages}
+        onClick={() => onSetPage(p => Math.min(totalPages, p + 1))}>Sau ›</button>
+      <span className="page-info">Trang {page}/{totalPages}</span>
+    </div>
+  );
+}
 
 export default function AdminTab({
   user, adminTab, adminStats, adminStatsLoading, adminMsg, adminLoading,
@@ -13,6 +40,57 @@ export default function AdminTab({
   onFetchAdminConvs, onOpenAdminConv, onAdminReply,
   onSetAdminReplyText, onSetAdminConvUserId, onSetAdminConvMessages,
 }) {
+  const [movieSearch, setMovieSearch] = useState("");
+  const [voucherSearch, setVoucherSearch] = useState("");
+  const [userSearch, setUserSearch] = useState("");
+  const [moviePage, setMoviePage] = useState(1);
+  const [voucherPage, setVoucherPage] = useState(1);
+  const [userPage, setUserPage] = useState(1);
+  const ITEMS_PER_PAGE = 10;
+
+  // Filter & paginate movies
+  const filteredMovies = movies.filter(m => {
+    if (!movieSearch) return true;
+    const q = movieSearch.toLowerCase();
+    return (m.Title || "").toLowerCase().includes(q)
+      || (m.Genre || "").toLowerCase().includes(q)
+      || (m.Description || "").toLowerCase().includes(q);
+  });
+  const movieTotalPages = Math.max(1, Math.ceil(filteredMovies.length / ITEMS_PER_PAGE));
+  const safeMoviePage = Math.min(moviePage, movieTotalPages);
+  const paginatedMovies = filteredMovies.slice(
+    (safeMoviePage - 1) * ITEMS_PER_PAGE,
+    safeMoviePage * ITEMS_PER_PAGE
+  );
+
+  // Filter & paginate vouchers
+  const filteredVouchers = adminVouchers.filter(v => {
+    if (!voucherSearch) return true;
+    const q = voucherSearch.toLowerCase();
+    return (v.Code || "").toLowerCase().includes(q)
+      || (v.Description || "").toLowerCase().includes(q);
+  });
+  const voucherTotalPages = Math.max(1, Math.ceil(filteredVouchers.length / ITEMS_PER_PAGE));
+  const safeVoucherPage = Math.min(voucherPage, voucherTotalPages);
+  const paginatedVouchers = filteredVouchers.slice(
+    (safeVoucherPage - 1) * ITEMS_PER_PAGE,
+    safeVoucherPage * ITEMS_PER_PAGE
+  );
+
+  // Filter & paginate users
+  const filteredUsers = adminUsers.filter(u => {
+    if (!userSearch) return true;
+    const q = userSearch.toLowerCase();
+    return (u.Name || "").toLowerCase().includes(q)
+      || (u.Email || "").toLowerCase().includes(q);
+  });
+  const userTotalPages = Math.max(1, Math.ceil(filteredUsers.length / ITEMS_PER_PAGE));
+  const safeUserPage = Math.min(userPage, userTotalPages);
+  const paginatedUsers = filteredUsers.slice(
+    (safeUserPage - 1) * ITEMS_PER_PAGE,
+    safeUserPage * ITEMS_PER_PAGE
+  );
+
   return (
     <main className="main-content">
       <div className="section-header">
@@ -84,7 +162,10 @@ export default function AdminTab({
       {adminTab === "movies" && (
         <>
           <div className="admin-toolbar">
-            <span className="section-count">{movies.length} phim</span>
+            <input className="admin-input" style={{maxWidth:280}} placeholder="🔍 Tìm phim..."
+              value={movieSearch}
+              onChange={e => { setMovieSearch(e.target.value); setMoviePage(1); }} />
+            <span className="section-count">{filteredMovies.length}/{movies.length} phim</span>
             <RippleButton className="btn-admin-add" onClick={() => {
               onSetAdminEditingMovie(null);
               onSetAdminMovieForm({ title: "", genre: "", description: "", year: 2024, price: "", tmdb_id: "" });
@@ -98,7 +179,7 @@ export default function AdminTab({
                 <tr><th>ID</th><th>Tên phim</th><th>Thể loại</th><th>Năm</th><th>Giá</th><th>Mô tả</th><th>Hành động</th></tr>
               </thead>
               <tbody>
-                {movies.map(m => (
+                {paginatedMovies.map(m => (
                   <tr key={m.MovieID}>
                     <td>#{m.MovieID}</td>
                     <td className="admin-movie-title">{m.Title}</td>
@@ -123,6 +204,7 @@ export default function AdminTab({
               </tbody>
             </table>
           </div>
+          <AdminPagination page={safeMoviePage} totalPages={movieTotalPages} onSetPage={setMoviePage} />
 
           {adminShowMovieForm && (
             <div className="admin-modal-overlay" onClick={e => { if (e.target === e.currentTarget) onSetAdminShowMovieForm(false); }}>
@@ -184,7 +266,10 @@ export default function AdminTab({
       {adminTab === "vouchers" && (
         <>
           <div className="admin-toolbar">
-            <span className="section-count">{adminVouchers.length} voucher</span>
+            <input className="admin-input" style={{maxWidth:280}} placeholder="🔍 Tìm voucher..."
+              value={voucherSearch}
+              onChange={e => { setVoucherSearch(e.target.value); setVoucherPage(1); }} />
+            <span className="section-count">{filteredVouchers.length}/{adminVouchers.length} voucher</span>
             <RippleButton className="btn-admin-add" onClick={() => {
               onSetAdminEditingVoucher(null);
               onSetAdminVoucherForm({ code: "", discount: "", description: "", expiry_date: "" });
@@ -198,7 +283,7 @@ export default function AdminTab({
                 <tr><th>ID</th><th>Mã</th><th>Giảm</th><th>Mô tả</th><th>Hạn sử dụng</th><th>Trạng thái</th><th>Hành động</th></tr>
               </thead>
               <tbody>
-                {adminVouchers.map(v => (
+                {paginatedVouchers.map(v => (
                   <tr key={v.VoucherID}>
                     <td>#{v.VoucherID}</td>
                     <td className="admin-voucher-code">{v.Code}</td>
@@ -219,6 +304,7 @@ export default function AdminTab({
               </tbody>
             </table>
           </div>
+          <AdminPagination page={safeVoucherPage} totalPages={voucherTotalPages} onSetPage={setVoucherPage} />
 
           {adminShowVoucherForm && (
             <div className="admin-modal-overlay" onClick={e => { if (e.target === e.currentTarget) onSetAdminShowVoucherForm(false); }}>
@@ -343,7 +429,10 @@ export default function AdminTab({
       {adminTab === "users" && (
         <>
           <div className="admin-toolbar">
-            <span className="section-count">{adminUsers.length} người dùng</span>
+            <input className="admin-input" style={{maxWidth:280}} placeholder="🔍 Tìm người dùng..."
+              value={userSearch}
+              onChange={e => { setUserSearch(e.target.value); setUserPage(1); }} />
+            <span className="section-count">{filteredUsers.length}/{adminUsers.length} người dùng</span>
           </div>
           <div className="admin-table-wrap">
             <table className="admin-table">
@@ -351,7 +440,7 @@ export default function AdminTab({
                 <tr><th>ID</th><th>Tên</th><th>Email</th><th>Vai trò</th></tr>
               </thead>
               <tbody>
-                {adminUsers.map(u => (
+                {paginatedUsers.map(u => (
                   <tr key={u.UserID}>
                     <td>#{u.UserID}</td>
                     <td className="admin-user-name">
@@ -369,6 +458,7 @@ export default function AdminTab({
               </tbody>
             </table>
           </div>
+          <AdminPagination page={safeUserPage} totalPages={userTotalPages} onSetPage={setUserPage} />
         </>
       )}
     </main>
