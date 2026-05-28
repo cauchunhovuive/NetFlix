@@ -1,6 +1,6 @@
 # 🎬 Netflix Clone — Ứng dụng Xem Phim
 
-Ứng dụng web quản lý và theo dõi lịch sử xem phim, xây dựng theo kiến trúc **Client-Server**, tích hợp **OMDb API** và phân tích dữ liệu trên **Databricks**.
+Ứng dụng web quản lý và theo dõi phim, xây dựng với kiến trúc **Client-Server**, tích hợp **OMDb API**, **Databricks SQL**, hỗ trợ **ví điện tử**, **voucher**, **admin dashboard** và **chat hỗ trợ**.
 
 > 📦 Project môn Điện Toán Đám Mây
 
@@ -9,27 +9,16 @@
 ## 🧱 Kiến trúc hệ thống
 
 ```
-┌─────────────────────┐        ┌──────────────────────┐        ┌─────────────────┐
-│   React Frontend    │ ─────► │   Express Backend     │ ─────► │   SQL Server    │
-│   localhost:5173    │        │   localhost:3000       │        │   NetflixDB     │
-└─────────────────────┘        └──────────────────────┘        └─────────────────┘
-           │                              │
-           │                              ▼
-           │                   ┌──────────────────────┐
-           └──────────────────►│      OMDb API         │
-                               │  (Kiểm tra & poster) │
-                               └──────────────────────┘
-
-                   Data Flow → Databricks
-                   ┌──────────────────────────────────────┐
-                   │  SQL Server → export.js → CSV files  │
-                   │              ↓                       │
-                   │  Upload lên Databricks Volume        │
-                   │              ↓                       │
-                   │  Spark Notebook phân tích            │
-                   │              ↓                       │
-                   │  Delta Lake Tables + Visualize       │
-                   └──────────────────────────────────────┘
+┌─────────────────────────┐       ┌──────────────────────────┐       ┌──────────────────────┐
+│    React Frontend       │ ───►  │    Express Backend        │ ───►  │  Databricks SQL      │
+│    localhost:5173       │       │    localhost:3000          │       │  (Cloud Data Lake)   │
+└─────────────────────────┘       └──────────────────────────┘       └──────────────────────┘
+         │                                    │
+         │                                    ▼
+         │                          ┌──────────────────────────┐
+         └─────────────────────────►│     OMDb API              │
+                                    │  (Poster, IMDb rating)    │
+                                    └──────────────────────────┘
 ```
 
 ---
@@ -38,28 +27,89 @@
 
 | Tầng | Công nghệ |
 |------|-----------|
-| Frontend | React, Vite, CSS |
-| Backend | Node.js, Express.js |
-| Database | SQL Server (Microsoft) |
+| Frontend | React 19, Vite 8, CSS |
+| Backend | Node.js, Express 5 |
+| Database | Databricks SQL (Databricks Community Edition) |
 | External API | OMDb API |
-| Cloud / Analytics | Databricks Community Edition, Apache Spark, Delta Lake |
-| Version Control | Git, GitHub |
+| Cloud / Analytics | Databricks, Apache Spark, Delta Lake |
 
 ---
 
-## 📁 Cấu trúc thư mục
+## 📁 Cấu trúc thư mục — Chức năng từng file (tiếng Việt)
 
 ```
 NetFlix/
-├── frontend/               # React app
+├── backend/                           # 🖥️ API Server (Express, modular routes)
+│   ├── server.js                      # Điểm vào backend — import & mount tất cả routes
+│   ├── db.js                          # Kết nối Databricks SQL + helper (safeCount, safeSum)
+│   ├── routes/
+│   │   ├── auth.js                    # 🔐 Đăng nhập (POST /login) & Đăng ký (POST /register)
+│   │   ├── movies.js                  # 🎬 CRUD phim — GET danh sách, POST thêm, PUT sửa, DELETE xóa
+│   │   ├── watch.js                   # 📝 Lưu lịch sử xem (POST /watch) & Lấy lịch sử (GET /history)
+│   │   ├── wallet.js                  # 💰 Ví điện tử — số dư, nạp tiền, giao dịch, mua phim
+│   │   ├── vouchers.js                # 🏷️ Quản lý voucher — CRUD + redeem mã giảm giá
+│   │   ├── support.js                 # 💬 Chat hỗ trợ — lấy hội thoại, gửi tin nhắn
+│   │   ├── admin.js                   # ⚙️ Admin — thống kê & danh sách user
+│   │   ├── profile.js                 # 👤 Cập nhật hồ sơ & đổi mật khẩu
+│   │   ├── favorites.js               # ❤️ Quản lý danh sách yêu thích
+│   │   ├── reviews.js                 # ⭐ Đánh giá & bình luận phim
+│   │   └── omdb.js                    # 🌐 Proxy OMDb API (tra cứu thông tin phim)
+│   ├── export.js                      # 📤 Export dữ liệu ra CSV để upload lên Databricks
+│   ├── seed-free.js                   # 🌱 Script seed dữ liệu mẫu (miễn phí)
+│   ├── utils/
+│   │   └── vietsub.js                 # 🔤 Map thể loại phim từ Anh → Việt
+│   └── .env                           # 🔑 Biến môi trường (DATABRICKS_TOKEN, HOST, PATH, OMDB_KEY)
+│
+├── frontend/                          # 🎨 React App (Vite)
 │   └── src/
-│       ├── App.jsx         # Component chính
-│       └── App.css         # Styles
-├── backend/                # Express API
-│   ├── server.js           # API routes
-│   ├── export.js           # Script export CSV cho Databricks
-│   └── package.json
-└── README.md
+│       ├── main.jsx                   # Điểm vào React DOM
+│       ├── App.jsx                    # 🧠 Điều phối chính — gọi hooks, quản lý state, render tabs
+│       ├── App.css                    # 🎭 Toàn bộ CSS toàn cục (variables, animations, components)
+│       ├── api.js                     # 📡 Hằng số API_URL + helper lấy ID/Title từ object
+│       │
+│       ├── hooks/                     # 🪝 Custom Hooks — mỗi hook quản lý 1 domain riêng
+│       │   ├── useAuth.js             # 🔐 State auth: login, register, logout, auth messages
+│       │   ├── useMovies.js           # 🎬 State phim: danh sách, lịch sử, modal, OMDb, player
+│       │   ├── useWallet.js           # 💰 State ví: số dư, nạp tiền, giao dịch, mua phim
+│       │   ├── useVouchers.js         # 🏷️ State voucher: danh sách, redeem mã
+│       │   ├── useProfile.js          # 👤 State hồ sơ: sửa tên/email, đổi mật khẩu
+│       │   ├── useChat.js             # 💬 State chat: tin nhắn, gửi/nhận support
+│       │   ├── useAdmin.js            # ⚙️ State admin: thống kê, users, CRUD, hội thoại support
+│       │   ├── useFavorites.js        # ❤️ State yêu thích: thêm/bỏ, danh sách favorite IDs
+│       │   ├── useReviews.js          # ⭐ State đánh giá: gửi & lấy review cho phim
+│       │   └── useTheme.js            # 🎨 State theme: danh sách themes, đổi theme
+│       │
+│       ├── components/                # 🧩 Component dùng chung (thuần UI, nhận props)
+│       │   ├── AuthParticles.jsx      # ✨ Hiệu ứng hạt nền động khi đăng nhập/đăng ký
+│       │   ├── HeroBanner.jsx         # 🖼️ Banner phim nổi bật với dots điều hướng
+│       │   ├── PlayerOverlay.jsx      # 📺 Overlay phát video (toàn màn hình)
+│       │   ├── PosterImage.jsx        # 🖼️ Poster phim + fallback gradient + chữ cái
+│       │   ├── RippleButton.jsx       # 🔘 Nút bấm hiệu ứng gợn sóng khi click
+│       │   ├── StarRating.jsx         # ⭐ Hiển thị rating bằng sao
+│       │   ├── Toast.jsx              # 🔔 Thông báo toast (auto-dismiss, click để tắt)
+│       │   ├── ToastContainer.jsx     # 📦 Container chứa danh sách toast (góc phải trên)
+│       │   └── TrailerPlayer.jsx      # 🎬 YouTube trailer embed (iframe search playlist)
+│       │
+│       ├── pages/                     # 📄 Các tab trang (được App.jsx render theo tab)
+│       │   ├── AuthPage.jsx           # 🔐 Trang đăng nhập / đăng ký (form slider, particles)
+│       │   ├── MoviesTab.jsx          # 🎬 Danh sách phim + genre filter + search + hero
+│       │   ├── HistoryTab.jsx         # 📋 Lịch sử xem + thống kê (tổng giờ, rating TB)
+│       │   ├── WalletTab.jsx          # 💰 Ví điện tử — số dư, giao dịch, phim đã mua
+│       │   ├── ProfileTab.jsx         # 👤 Hồ sơ cá nhân + thống kê + top phim đã xem
+│       │   ├── VouchersTab.jsx        # 🏷️ Danh sách voucher + ô nhập mã redeem
+│       │   └── AdminTab.jsx           # ⚙️ Dashboard + quản lý users/movies/vouchers/support
+│       │
+│       ├── modals/                    # 🪟 Modal overlay (lớp phủ trung tâm)
+│       │   ├── MovieModal.jsx         # 🎞️ Chi tiết phim: poster, OMDb info, watch form, mua, reviews, trailer
+│       │   └── TopUpModal.jsx         # 💳 Nạp tiền vào ví (chọn số tiền, nhập voucher)
+│       │
+│       ├── chat/                      # 💬 Widget chat hỗ trợ
+│       │   └── SupportChat.jsx        # 🗨️ Floating chat — FAB + hộp chat real-time
+│       │
+│       └── utils/
+│           └── vietsub.js             # 🔤 Mảng map thể loại: "Action" → "Hành động", "Sci-Fi" → "Khoa học viễn tưởng"
+│
+└── README.md                          # 📖 Tài liệu hướng dẫn project (chính là file này)
 ```
 
 ---
@@ -68,7 +118,6 @@ NetFlix/
 
 ### Yêu cầu
 - Node.js >= 18
-- SQL Server (local)
 - npm
 
 ---
@@ -82,69 +131,26 @@ cd NetFlix
 
 ---
 
-### 2. Cài đặt & chạy Backend
+### 2. Cấu hình Backend
 
 ```bash
 cd backend
 npm install
 ```
 
-Cấu hình database trong `server.js`:
-```js
-const config = {
-    user: "sa",
-    password: "123456",       // ← đổi thành password của bạn
-    server: "localhost",
-    database: "NetflixDB",
-    options: { trustServerCertificate: true }
-};
+Tạo file `.env` trong thư mục `backend/`:
+
+```env
+DATABRICKS_TOKEN=dapid5f2283a08db03c876a85091ed6324d5
+DATABRICKS_HOST=dbc-5d5ac2ba-09bc.cloud.databricks.com
+DATABRICKS_PATH=/sql/1.0/warehouses/a610c57606d351ac
+OMDB_KEY=5a5767ab
 ```
 
-Khởi tạo database SQL Server:
-```sql
-CREATE DATABASE NetflixDB;
-
-CREATE TABLE Users (
-    UserID   INT PRIMARY KEY IDENTITY,
-    Name     NVARCHAR(100),
-    Email    NVARCHAR(100) UNIQUE,
-    Password NVARCHAR(100)
-);
-
-CREATE TABLE Movies (
-    MovieID     INT PRIMARY KEY IDENTITY,
-    Title       NVARCHAR(200),
-    Genre       NVARCHAR(100),
-    Description NVARCHAR(MAX)
-);
-
-CREATE TABLE WatchHistory (
-    HistoryID INT PRIMARY KEY IDENTITY,
-    UserID    INT FOREIGN KEY REFERENCES Users(UserID),
-    MovieID   INT FOREIGN KEY REFERENCES Movies(MovieID),
-    WatchTime INT,
-    Rating    FLOAT,
-    CreatedAt DATETIME DEFAULT GETDATE()
-);
-
--- Thêm phim mẫu
-INSERT INTO Movies (Title, Genre, Description) VALUES
-('Avengers', 'Action', NULL),
-('Spider Man', 'Action', NULL),
-('Titanic', 'Romance', NULL),
-('The Dark Knight', 'Action', NULL),
-('Inception', 'Sci-Fi', NULL),
-('Interstellar', 'Sci-Fi', NULL),
-('The Godfather', 'Crime', NULL),
-('Forrest Gump', 'Drama', NULL),
-('The Lion King', 'Animation', NULL),
-('Harry Potter', 'Fantasy', NULL),
-('Joker', 'Thriller', NULL),
-('Avatar', 'Sci-Fi', NULL),
-('John Wick', 'Action', NULL);
-```
+> **Lưu ý:** Các thông số Databricks host, path, token đều được cấu hình qua `.env`, không cần sửa code.
 
 Chạy server:
+
 ```bash
 node server.js
 # Server chạy tại http://localhost:3000
@@ -165,30 +171,106 @@ npm run dev
 
 ## 📡 API Endpoints
 
+### 🔐 Auth
+
 | Method | Endpoint | Mô tả |
 |--------|----------|-------|
-| GET | `/movies` | Lấy danh sách phim |
-| POST | `/register` | Đăng ký tài khoản |
-| POST | `/login` | Đăng nhập |
-| POST | `/watch` | Lưu lịch sử xem |
-| GET | `/history` | Lấy lịch sử xem |
+| POST | `/login` | Đăng nhập (trả về user + Role + WalletBalance) |
+| POST | `/register` | Đăng ký tài khoản mới |
+
+### 🎬 Movies
+
+| Method | Endpoint | Mô tả |
+|--------|----------|-------|
+| GET | `/movies` | Lấy danh sách phim (sắp xếp theo MovieID) |
+| POST | `/movies` | Thêm phim mới (admin) |
+| PUT | `/movies/:id` | Cập nhật phim (admin) |
+| DELETE | `/movies/:id` | Xóa phim (admin) |
+
+### 📝 Watch History
+
+| Method | Endpoint | Mô tả |
+|--------|----------|-------|
+| POST | `/watch` | Lưu lịch sử xem + đánh giá |
+| GET | `/history` | Lấy lịch sử xem (join users + movies) |
+
+### 👤 Profile
+
+| Method | Endpoint | Mô tả |
+|--------|----------|-------|
+| PUT | `/user/:id` | Cập nhật tên/email |
+| PUT | `/user/:id/password` | Đổi mật khẩu |
+
+### 💰 Wallet
+
+| Method | Endpoint | Mô tả |
+|--------|----------|-------|
+| GET | `/wallet/:userId` | Lấy số dư ví |
+| POST | `/wallet/topup` | Nạp tiền (có thể kèm voucher) |
+| GET | `/wallet/:userId/transactions` | Lịch sử giao dịch |
+| GET | `/wallet/:userId/purchases` | Phim đã mua |
+| POST | `/wallet/purchase` | Mua phim |
+
+### 🏷️ Vouchers
+
+| Method | Endpoint | Mô tả |
+|--------|----------|-------|
+| GET | `/vouchers` | Danh sách voucher |
+| POST | `/vouchers` | Tạo voucher (admin) |
+| PUT | `/vouchers/:id` | Cập nhật voucher (admin) |
+| DELETE | `/vouchers/:id` | Xóa voucher (admin) |
+| POST | `/vouchers/redeem` | Kiểm tra mã voucher |
+
+### 💬 Support Chat
+
+| Method | Endpoint | Mô tả |
+|--------|----------|-------|
+| GET | `/support/conversations` | Danh sách hội thoại (admin) |
+| GET | `/support/messages/:userId` | Tin nhắn của user |
+| POST | `/support/send` | Gửi tin nhắn (user/admin) |
+
+### ⚙️ Admin
+
+| Method | Endpoint | Mô tả |
+|--------|----------|-------|
+| GET | `/admin/users` | Danh sách user |
+| GET | `/admin/stats` | Thống kê tổng quan (users, movies, transactions, vouchers, revenue) |
 
 ---
 
 ## ✨ Tính năng
 
-- 🔐 Đăng ký / Đăng nhập tài khoản
-- 🎥 Danh sách phim với poster từ OMDb API
-- 🔍 Kiểm tra thông tin phim (IMDb rating, thể loại, thời lượng)
-- 📝 Ghi lại lịch sử xem + đánh giá
-- 📊 Thống kê: tổng lượt xem, rating trung bình, tổng thời gian
-- 👤 Trang tài khoản cá nhân
+### Người dùng
+- 🔐 Đăng ký / Đăng nhập với hiệu ứng particles + spotlight
+- 🎥 Duyệt phim theo thể loại + tìm kiếm với poster từ OMDb
+- ⭐ Xem thông tin IMDb (rating, runtime, năm)
+- 📝 Ghi lại lịch sử xem + đánh giá sao
+- 📊 Thống kê cá nhân (tổng thời gian xem, rating trung bình, top phim)
+- 💰 Ví điện tử — nạp tiền (kèm voucher giảm giá)
+- 🛒 Mua phim bằng số dư trong ví
+- 🏷️ Danh sách + redeem voucher
+- 👤 Chỉnh sửa hồ sơ, đổi mật khẩu
+- 💬 Chat hỗ trợ trực tiếp
+- ❤️ Yêu thích phim
+- ⭐ Đánh giá & bình luận phim
+- 🎬 Xem YouTube trailer ngay trong app
+- ⌨️ Phím tắt: ← → điều hướng banner, Escape đóng overlay
+- 🔔 Thông báo toast thay vì alert trình duyệt
+- 🎨 Đổi theme giao diện (5 màu sắc khác nhau)
+
+### Admin
+- 📊 Dashboard thống kê: users, movies, transactions, vouchers, doanh thu
+- 👥 Quản lý user
+- 🎬 CRUD phim (thêm/sửa/xóa)
+- 🏷️ CRUD voucher (thêm/sửa/xóa)
+- 💬 Quản lý hội thoại hỗ trợ + trả lời tin nhắn
 
 ---
 
 ## ☁️ Triển khai trên Databricks
 
 ### Export data ra CSV
+
 ```bash
 cd backend
 node export.js
@@ -196,11 +278,13 @@ node export.js
 ```
 
 ### Upload lên Databricks
+
 1. Vào **Databricks Community Edition**
 2. **Data Ingestion** → **Upload files**
-3. Upload 3 file CSV vào Volume `/Volumes/main/default/data_netflix/`
+3. Upload 3 file CSV vào Volume
 
-### Chạy Notebook phân tích
+### Phân tích với Spark
+
 Notebook `Netflix_Analysis` trên Databricks Workspace thực hiện:
 - Load data từ Volume bằng Apache Spark
 - Phân tích phim được xem nhiều nhất
@@ -212,16 +296,29 @@ Notebook `Netflix_Analysis` trên Databricks Workspace thực hiện:
 
 ## 🌐 External API
 
-**OMDb API** — `http://www.omdbapi.com`
+**OMDb API** — `http://www.omdbapi.com` (Key: `5a5767ab`)
 
-Dùng để kiểm tra phim có tồn tại và lấy thông tin:
+Dùng để lấy:
 - Poster phim
 - IMDb Rating
 - Thể loại, năm phát hành, thời lượng
 
 ---
 
+## 🧠 Kiến trúc code
+
+### Backend (Modular Routes)
+- `server.js` chỉ import và mount các route modules
+- `db.js` quản lý kết nối Databricks + helper functions (`safeCount`, `safeSum`)
+- Mỗi nhóm endpoint nằm trong file riêng tại `routes/`
+
+### Frontend (Custom Hooks)
+- **App.jsx** đóng vai trò orchestration: gọi hooks → lấy state + actions → truyền props xuống components
+- **Hooks** (`useAuth`, `useMovies`, `useWallet`, `useVouchers`, `useProfile`, `useChat`, `useAdmin`) — mỗi hook quản lý state + fetch logic cho một domain riêng
+- **Components** nhận props và render UI thuần túy
+
+---
+
 ## 👨‍💻 Tác giả
 
 - **GitHub:** [cauchunhovuive](https://github.com/cauchunhovuive)
-    

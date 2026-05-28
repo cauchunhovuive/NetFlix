@@ -1,149 +1,41 @@
+require("dotenv").config();
+
 const express = require("express");
 const cors = require("cors");
-const { DBSQLClient } = require("@databricks/sql");
+
+const authRoutes = require("./routes/auth");
+const moviesRoutes = require("./routes/movies");
+const watchRoutes = require("./routes/watch");
+const walletRoutes = require("./routes/wallet");
+const voucherRoutes = require("./routes/vouchers");
+const supportRoutes = require("./routes/support");
+const adminRoutes = require("./routes/admin");
+const profileRoutes = require("./routes/profile");
+const favoriteRoutes = require("./routes/favorites");
+const reviewRoutes = require("./routes/reviews");
+const omdbRoutes = require("./routes/omdb");
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
-/* ================= DATABASE CONFIG ================= */
+// ================= ROUTES =================
 
-const serverConfig = {
-    host: "dbc-5d5ac2ba-09bc.cloud.databricks.com",
-    path: "/sql/1.0/warehouses/a610c57606d351ac",
-    token: "dapid5f2283a08db03c876a85091ed6324d5"
-};
+app.use("/", authRoutes);          // POST /login, POST /register
+app.use("/movies", moviesRoutes);  // GET/POST /movies, PUT/DELETE /movies/:id
+app.use("/", watchRoutes);         // POST /watch, GET /history
+app.use("/wallet", walletRoutes);  // GET/POST /wallet/...
+app.use("/vouchers", voucherRoutes); // GET/POST/PUT/DELETE /vouchers/...
+app.use("/support", supportRoutes);  // GET /support/conversations, GET /support/messages/:userId, POST /support/send
+app.use("/", adminRoutes);         // GET /admin/users, GET /admin/stats
+app.use("/", profileRoutes);       // PUT /user/:id, PUT /user/:id/password
+app.use("/favorites", favoriteRoutes); // GET/POST /favorites/...
+app.use("/reviews", reviewRoutes);   // GET/POST/DELETE /reviews/...
+app.use("/omdb", omdbRoutes);       // GET /omdb?t=...  (proxy OMDb API)
 
-const client = new DBSQLClient();
-
-async function getSession() {
-    const connection = await client.connect(serverConfig);
-    return await connection.openSession();
-}
-
-/* ================= ROUTES ================= */
-
-app.post("/login", async (req, res) => {
-    let session;
-    try {
-        const { email, password } = req.body;
-        session = await getSession();
-        const sql = `
-            SELECT UserID, Name, Email 
-            FROM workspace.netflixdb.users 
-            WHERE Email = '${email}' AND Password = '${password}'
-        `;
-        const query = await session.executeStatement(sql);
-        const result = await query.fetchAll();
-        await query.close();
-        if (result.length === 0) {
-            return res.status(401).json({ message: "Email hoặc mật khẩu không đúng" });
-        }
-        res.json({ user: result[0] });
-    } catch (err) {
-        console.error("Lỗi đăng nhập:", err);
-        res.status(500).json({ message: "Lỗi server khi đăng nhập" });
-    } finally {
-        if (session) await session.close();
-    }
-});
-
-app.get("/movies", async (req, res) => {
-    let session;
-    try {
-        session = await getSession();
-        const query = await session.executeStatement("SELECT * FROM workspace.netflixdb.movies");
-        const result = await query.fetchAll();
-        await query.close();
-        res.json(result);
-    } catch (err) {
-        console.error(err);
-        res.status(500).send("Lỗi lấy dữ liệu phim");
-    } finally {
-        if (session) await session.close();
-    }
-});
-
-app.post("/register", async (req, res) => {
-    let session;
-    try {
-        const { name, email, password } = req.body;
-        session = await getSession();
-        const check = await session.executeStatement(
-            `SELECT * FROM workspace.netflixdb.users WHERE Email = '${email}'`
-        );
-        const rows = await check.fetchAll();
-        await check.close();
-        if (rows.length > 0) return res.status(400).json({ message: "Email đã tồn tại" });
-        await session.executeStatement(`
-            INSERT INTO workspace.netflixdb.users (Name, Email, Password)
-            VALUES ('${name}', '${email}', '${password}')
-        `);
-        res.json({ message: "Đăng ký thành công" });
-    } catch (err) {
-        console.error(err);
-        res.status(500).json({ message: "Lỗi server" });
-    } finally {
-        if (session) await session.close();
-    }
-});
-
-// ✅ Lưu lịch sử xem - KHÔNG truyền HistoryID (tự sinh IDENTITY)
-app.post("/watch", async (req, res) => {
-    let session;
-    try {
-        const { user_id, movie_id, watch_time, rating } = req.body;
-
-        if (!user_id || !movie_id || !watch_time || !rating) {
-            return res.status(400).json({ message: "Thiếu thông tin" });
-        }
-
-        session = await getSession();
-
-        const createdAt = new Date().toISOString().replace('T', ' ').slice(0, 19);
-
-        await session.executeStatement(`
-            INSERT INTO workspace.netflixdb.watchhistory (UserID, MovieID, WatchTime, Rating, CreatedAt)
-            VALUES (${user_id}, ${movie_id}, ${watch_time}, ${rating}, '${createdAt}')
-        `);
-
-        res.json({ message: "Lưu lịch sử thành công" });
-    } catch (err) {
-        console.error("Lỗi lưu lịch sử:", err);
-        res.status(500).json({ message: "Lỗi server khi lưu lịch sử", detail: err.message });
-    } finally {
-        if (session) await session.close();
-    }
-});
-
-// Xem lịch sử (Join 3 bảng)
-app.get("/history", async (req, res) => {
-    let session;
-    try {
-        session = await getSession();
-        const sql = `
-    SELECT 
-        wh.HistoryID, wh.UserID, u.Name, m.Title, wh.WatchTime, wh.Rating, wh.CreatedAt
-    FROM workspace.netflixdb.watchhistory wh
-    JOIN workspace.netflixdb.users u ON wh.UserID = u.UserID
-    JOIN workspace.netflixdb.movies m ON wh.MovieID = m.MovieID
-    ORDER BY wh.CreatedAt DESC
-`;
-        const query = await session.executeStatement(sql);
-        const result = await query.fetchAll();
-        await query.close();
-        res.json(result);
-    } catch (err) {
-        console.error(err);
-        res.status(500).send("Lỗi lấy lịch sử");
-    } finally {
-        if (session) await session.close();
-    }
-});
-
-/* ================= START ================= */
+// ================= START =================
 
 const PORT = 3000;
 app.listen(PORT, () => {
-    console.log(`🚀 Server đang chạy tại http://localhost:${PORT}`);
+    console.log(`🚀 Server dang chay tai http://localhost:${PORT}`);
 });
