@@ -23,6 +23,29 @@ router.get("/admin/users", async (req, res) => {
     }
 });
 
+// GET /admin/transactions - list all transactions with user info (admin)
+router.get("/admin/transactions", async (req, res) => {
+    let session;
+    try {
+        session = await getSession();
+        const query = await session.executeStatement(`
+            SELECT t.*, u.Name, u.Email
+            FROM workspace.netflixdb.transactions t
+            JOIN workspace.netflixdb.users u ON t.UserID = u.UserID
+            ORDER BY t.CreatedAt DESC
+            LIMIT 200
+        `);
+        const result = await query.fetchAll();
+        await query.close();
+        res.json(result);
+    } catch (err) {
+        console.error("Lỗi lấy giao dịch:", err);
+        res.status(500).json({ message: "Lỗi lấy danh sách giao dịch" });
+    } finally {
+        if (session) await session.close();
+    }
+});
+
 // GET /admin/stats - dashboard statistics (admin)
 router.get("/admin/stats", async (req, res) => {
     let session;

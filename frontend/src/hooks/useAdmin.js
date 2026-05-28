@@ -19,6 +19,8 @@ export function useAdmin() {
   });
   const [adminEditingVoucher, setAdminEditingVoucher] = useState(null);
   const [adminShowVoucherForm, setAdminShowVoucherForm] = useState(false);
+  const [adminTransactions, setAdminTransactions] = useState([]);
+  const [adminTransactionsLoading, setAdminTransactionsLoading] = useState(false);
   const [adminConv, setAdminConv] = useState([]);
   const [adminConvLoading, setAdminConvLoading] = useState(false);
   const [adminConvMessages, setAdminConvMessages] = useState([]);
@@ -60,6 +62,17 @@ export function useAdmin() {
     } catch {
       setAdminVouchers([]);
     }
+  }
+
+  async function fetchAdminTransactions() {
+    setAdminTransactionsLoading(true);
+    try {
+      const res = await fetch(`${API}/admin/transactions`);
+      setAdminTransactions(await res.json());
+    } catch {
+      setAdminTransactions([]);
+    }
+    setAdminTransactionsLoading(false);
   }
 
   async function fetchAdminConvs() {
@@ -245,6 +258,7 @@ export function useAdmin() {
     setAdminUsers([]);
     setAdminVouchers([]);
     setAdminStats(null);
+    setAdminTransactions([]);
   }
 
   return {
@@ -261,6 +275,8 @@ export function useAdmin() {
     adminVoucherForm, setAdminVoucherForm,
     adminEditingVoucher, setAdminEditingVoucher,
     adminShowVoucherForm, setAdminShowVoucherForm,
+    adminTransactions, setAdminTransactions,
+    adminTransactionsLoading,
     adminConv, setAdminConv,
     adminConvLoading,
     adminConvMessages, setAdminConvMessages,
@@ -270,6 +286,7 @@ export function useAdmin() {
     fetchAdminStats,
     fetchAdminUsers,
     fetchAdminVouchers,
+    fetchAdminTransactions,
     fetchAdminConvs,
     openAdminConv,
     doAdminReply,

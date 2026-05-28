@@ -76,6 +76,7 @@ export default function App() {
         admin.fetchAdminUsers();
         admin.fetchAdminVouchers();
         admin.fetchAdminConvs();
+        admin.fetchAdminTransactions();
       }
       vouchers.fetchVouchers();
       if (user?.Role !== "Admin") {
@@ -417,6 +418,8 @@ export default function App() {
             adminShowVoucherForm={admin.adminShowVoucherForm}
             adminConv={admin.adminConv}
             adminConvLoading={admin.adminConvLoading}
+            adminTransactions={admin.adminTransactions}
+            adminTransactionsLoading={admin.adminTransactionsLoading}
             adminConvMessages={admin.adminConvMessages}
             adminConvUserId={admin.adminConvUserId}
             adminReplyText={admin.adminReplyText}

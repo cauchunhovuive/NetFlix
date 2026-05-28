@@ -29,7 +29,9 @@ function AdminPagination({ page, totalPages, onSetPage }) {
 
 export default function AdminTab({
   user, adminTab, adminStats, adminStatsLoading, adminMsg, adminLoading,
-  adminUsers, movies, adminVouchers, adminMovieForm, adminEditingMovie,
+  adminUsers, movies, adminVouchers,
+  adminTransactions, adminTransactionsLoading,
+  adminMovieForm, adminEditingMovie,
   adminShowMovieForm, adminVoucherForm, adminEditingVoucher, adminShowVoucherForm,
   adminConv, adminConvLoading, adminConvMessages, adminConvUserId,
   adminReplyText, adminReplySending,
@@ -43,6 +45,8 @@ export default function AdminTab({
   const [movieSearch, setMovieSearch] = useState("");
   const [voucherSearch, setVoucherSearch] = useState("");
   const [userSearch, setUserSearch] = useState("");
+  const [txSearch, setTxSearch] = useState("");
+  const [txPage, setTxPage] = useState(1);
   const [moviePage, setMoviePage] = useState(1);
   const [voucherPage, setVoucherPage] = useState(1);
   const [userPage, setUserPage] = useState(1);
@@ -77,6 +81,24 @@ export default function AdminTab({
     safeVoucherPage * ITEMS_PER_PAGE
   );
 
+  // Filter & paginate transactions
+  const filteredTxs = adminTransactions.filter(tx => {
+    if (!txSearch) return true;
+    const q = txSearch.toLowerCase();
+    return (tx.Description || "").toLowerCase().includes(q)
+      || (tx.Name || "").toLowerCase().includes(q)
+      || (tx.Email || "").toLowerCase().includes(q)
+      || String(tx.TransactionID || "").includes(q)
+      || String(tx.Amount || "").includes(q)
+      || (tx.Type || "").toLowerCase().includes(q);
+  });
+  const txTotalPages = Math.max(1, Math.ceil(filteredTxs.length / ITEMS_PER_PAGE));
+  const safeTxPage = Math.min(txPage, txTotalPages);
+  const paginatedTxs = filteredTxs.slice(
+    (safeTxPage - 1) * ITEMS_PER_PAGE,
+    safeTxPage * ITEMS_PER_PAGE
+  );
+
   // Filter & paginate users
   const filteredUsers = adminUsers.filter(u => {
     if (!userSearch) return true;
@@ -103,6 +125,7 @@ export default function AdminTab({
           { key: "movies", label: "🎬 Quản lý phim" },
           { key: "vouchers", label: "🏷️ Quản lý voucher" },
           { key: "users", label: "👥 Người dùng" },
+          { key: "transactions", label: "💳 Giao dịch" },
           { key: "support", label: "💬 Hỗ trợ" },
         ].map(({ key, label }) => (
           <button key={key}
@@ -421,6 +444,65 @@ export default function AdminTab({
                 </button>
               </form>
             </div>
+          )}
+        </>
+      )}
+
+      {/* Transactions */}
+      {adminTab === "transactions" && (
+        <>
+          <div className="admin-toolbar">
+            <input className="admin-input" style={{maxWidth:320}} placeholder="🔍 Tìm giao dịch (mô tả, user, email, ID, số tiền, loại)..."
+              value={txSearch}
+              onChange={e => { setTxSearch(e.target.value); setTxPage(1); }} />
+            <span className="section-count">{filteredTxs.length}/{adminTransactions.length} giao dịch</span>
+          </div>
+          {adminTransactionsLoading ? (
+            <div className="loading">
+              <div className="loading-dots"><span /><span /><span /></div>
+              <div>Đang tải giao dịch...</div>
+            </div>
+          ) : adminTransactions.length === 0 ? (
+            <div className="empty-state">
+              <div className="empty-state-icon">💳</div>
+              <div className="empty-state-text">Chưa có giao dịch nào</div>
+            </div>
+          ) : (
+            <>
+              <div className="admin-table-wrap">
+                <table className="admin-table">
+                  <thead>
+                    <tr><th>ID</th><th>Người dùng</th><th>Email</th><th>Số tiền</th><th>Loại</th><th>Mô tả</th><th>VoucherID</th><th>Ngày tạo</th></tr>
+                  </thead>
+                  <tbody>
+                    {paginatedTxs.map(tx => (
+                      <tr key={tx.TransactionID}>
+                        <td>#{tx.TransactionID}</td>
+                        <td className="admin-user-name">
+                          <div className="admin-user-avatar">{(tx.Name || "U").slice(0, 2).toUpperCase()}</div>
+                          <span>{tx.Name || "—"}</span>
+                        </td>
+                        <td>{tx.Email || "—"}</td>
+                        <td>
+                          <span className={`tx-amount ${tx.Type === 'topup' ? 'tx-amount-plus' : 'tx-amount-minus'}`}>
+                            {tx.Type === 'topup' ? '+' : ''}${parseFloat(tx.Amount).toFixed(2)}
+                          </span>
+                        </td>
+                        <td>
+                          <span className={`admin-status ${tx.Type === 'topup' ? 'active' : ''}`}>
+                            {tx.Type === 'topup' ? '📥 Nạp' : '🎬 Mua'}
+                          </span>
+                        </td>
+                        <td className="admin-desc-cell">{tx.Description || "—"}</td>
+                        <td>{tx.VoucherID ? <span className="admin-genre-tag">#{tx.VoucherID}</span> : "—"}</td>
+                        <td>{tx.CreatedAt ? new Date(tx.CreatedAt).toLocaleString("vi-VN") : "—"}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <AdminPagination page={safeTxPage} totalPages={txTotalPages} onSetPage={setTxPage} />
+            </>
           )}
         </>
       )}
