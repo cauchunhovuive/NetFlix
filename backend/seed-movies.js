@@ -38,6 +38,7 @@ const NEW_MOVIES = [
   { title: "Parasite", genre: "Drama, Thriller", description: "Gia đình nghèo khéo léo len lỏi vào biệt thự của nhà giàu.", price: 4.99, tmdb_id: 496243 },
   { title: "Oppenheimer", genre: "Drama, History", description: "Cha đẻ của bom nguyên tử đối mặt với lương tâm sau khi tạo ra vũ khí hủy diệt.", price: 5.99, tmdb_id: 872585 },
   { title: "La La Land", genre: "Drama, Romance", description: "Chuyện tình lãng mạn giữa diễn viên khao khát và nghệ sĩ piano jazz.", price: 3.99, tmdb_id: 313369 },
+  { title: "Queen of Tears", genre: "Drama, Romance", description: "Hong Hae-in, nữ thừa kế thế hệ thứ 3 của tập đoàn Queens, đã kết hôn 3 năm với Baek Hyun-woo, con trai một trưởng làng. Họ cùng nhau vượt qua cuộc khủng hoảng hôn nhân cho đến khi một khởi đầu kỳ diệu giúp họ viết lại câu chuyện tình yêu.", price: 3.99, tmdb_id: 215720 },
 
   // === ANIMATION ===
   { title: "Spirited Away", genre: "Animation, Adventure", description: "Cô bé Chihiro lạc vào thế giới thần linh và phải giải cứu cha mẹ.", price: 2.99, tmdb_id: 129 },

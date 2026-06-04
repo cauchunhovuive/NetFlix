@@ -14,6 +14,7 @@ const profileRoutes = require("./routes/profile");
 const favoriteRoutes = require("./routes/favorites");
 const reviewRoutes = require("./routes/reviews");
 const omdbRoutes = require("./routes/omdb");
+const exportRoutes = require("./routes/export");
 
 const app = express();
 app.use(cors());
@@ -32,6 +33,7 @@ app.use("/", profileRoutes);       // PUT /user/:id, PUT /user/:id/password
 app.use("/favorites", favoriteRoutes); // GET/POST /favorites/...
 app.use("/reviews", reviewRoutes);   // GET/POST/DELETE /reviews/...
 app.use("/omdb", omdbRoutes);       // GET /omdb?t=...  (proxy OMDb API)
+app.use("/", exportRoutes);          // GET/POST /admin/export/* (data export framework)
 
 // ================= START =================
 
