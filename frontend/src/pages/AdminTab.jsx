@@ -1,5 +1,6 @@
 import { useState } from "react";
 import RippleButton from "../components/RippleButton";
+import { DailyRevenueChart, GenrePieChart, TopTopUpUsersChart } from "../components/DashboardCharts";
 
 function AdminPagination({ page, totalPages, onSetPage }) {
   if (totalPages <= 1) return null;
@@ -175,6 +176,15 @@ export default function AdminTab({
                   <div className="dashboard-revenue-label">Tổng doanh thu</div>
                   <div className="dashboard-revenue-value">${parseFloat(adminStats.totalRevenue).toLocaleString()}</div>
                 </div>
+              </div>
+
+              {/* Charts */}
+              <div className="charts-row">
+                <DailyRevenueChart data={adminStats.dailyRevenue} />
+                <GenrePieChart data={adminStats.genreDistribution} />
+              </div>
+              <div className="charts-row-wide">
+                <TopTopUpUsersChart data={adminStats.topTopUpUsers} />
               </div>
             </>
           )}

@@ -2966,6 +2966,141 @@ body {
   text-shadow: 0 0 30px rgba(245,197,24,0.15);
 }
 
+/* ========== DASHBOARD CHARTS ========== */
+.charts-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-top: 20px;
+}
+
+@media (max-width: 1100px) {
+  .charts-row { grid-template-columns: 1fr; }
+}
+
+.charts-row-wide {
+  margin-top: 16px;
+}
+
+.chart-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  overflow: hidden;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  animation: stat-in 0.5s var(--ease-out) both;
+}
+.chart-card:hover {
+  border-color: var(--border-hover);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+}
+
+.chart-card-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--border);
+  background: rgba(255,255,255,0.02);
+}
+
+.chart-card-icon {
+  font-size: 18px;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: rgba(255,255,255,0.04);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.chart-card-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.chart-card-body {
+  padding: 8px 12px 12px;
+}
+
+.chart-card-body-pie {
+  padding-bottom: 8px;
+}
+
+.chart-card-wide {
+  grid-column: 1 / -1;
+}
+
+.chart-empty {
+  padding: 3rem 2rem;
+  text-align: center;
+  color: var(--text-faint);
+  font-size: 13px;
+}
+
+/* Tooltip */
+.chart-tooltip {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-hover);
+  border-radius: 10px;
+  padding: 10px 14px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+  font-size: 12px;
+}
+
+.chart-tooltip-label {
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 4px;
+  font-size: 13px;
+}
+
+.chart-tooltip-value {
+  font-weight: 500;
+}
+
+/* Legend */
+.chart-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  padding: 0 12px 10px;
+}
+
+.chart-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.chart-legend-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.chart-legend-label {
+  font-weight: 500;
+}
+
+.chart-legend-value {
+  font-weight: 700;
+  color: var(--text-faint);
+}
+
+.chart-legend-more {
+  opacity: 0.5;
+  font-style: italic;
+}
+
 /* ========== ADMIN ========== */
 .admin-tabs {
   display: flex;
